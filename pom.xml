@@ -11,7 +11,7 @@
 
     <name>Poly</name>
     <description>The Poly series: multi-zone routing, unified configuration, dynamic datasources, Redis multi-datacenter replication and endpoint-level gateway routing</description>
-    <url>https://github.com/LoveEleve/poly</url>
+    <url>https://github.com/LoveEleve/poly-project</url>
 
     <licenses>
         <license>
@@ -30,9 +30,9 @@
     </developers>
 
     <scm>
-        <url>https://github.com/LoveEleve/poly</url>
-        <connection>scm:git:https://github.com/LoveEleve/poly.git</connection>
-        <developerConnection>scm:git:git@github.com:LoveEleve/poly.git</developerConnection>
+        <url>https://github.com/LoveEleve/poly-project</url>
+        <connection>scm:git:https://github.com/LoveEleve/poly-project.git</connection>
+        <developerConnection>scm:git:git@github.com:LoveEleve/poly-project.git</developerConnection>
     </scm>
 
     <!-- Aggregator only: every project keeps its own parent POM and builds standalone.

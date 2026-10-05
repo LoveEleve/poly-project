@@ -11,7 +11,7 @@
 
     <name>PolyGateway</name>
     <description>Endpoint-level routing for Spring Cloud Gateway: providers publish their web endpoints, the gateway discovers and routes them precisely</description>
-    <url>https://github.com/LoveEleve/poly/tree/main/polygateway</url>
+    <url>https://github.com/LoveEleve/poly-project/tree/main/polygateway</url>
 
     <licenses>
         <license>
@@ -30,9 +30,9 @@
     </developers>
 
     <scm>
-        <url>https://github.com/LoveEleve/poly</url>
-        <connection>scm:git:https://github.com/LoveEleve/poly.git</connection>
-        <developerConnection>scm:git:git@github.com:LoveEleve/poly.git</developerConnection>
+        <url>https://github.com/LoveEleve/poly-project</url>
+        <connection>scm:git:https://github.com/LoveEleve/poly-project.git</connection>
+        <developerConnection>scm:git:git@github.com:LoveEleve/poly-project.git</developerConnection>
     </scm>
 
     <modules>

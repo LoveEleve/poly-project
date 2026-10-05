@@ -11,7 +11,7 @@
 
     <name>PolyConfig</name>
     <description>Unified configuration center abstraction for Spring: declarative property sources, config change events and backend adapters</description>
-    <url>https://github.com/LoveEleve/poly/tree/main/polyconfig</url>
+    <url>https://github.com/LoveEleve/poly-project/tree/main/polyconfig</url>
 
     <licenses>
         <license>
@@ -30,9 +30,9 @@
     </developers>
 
     <scm>
-        <url>https://github.com/LoveEleve/poly</url>
-        <connection>scm:git:https://github.com/LoveEleve/poly.git</connection>
-        <developerConnection>scm:git:git@github.com:LoveEleve/poly.git</developerConnection>
+        <url>https://github.com/LoveEleve/poly-project</url>
+        <connection>scm:git:https://github.com/LoveEleve/poly-project.git</connection>
+        <developerConnection>scm:git:git@github.com:LoveEleve/poly-project.git</developerConnection>
     </scm>
 
     <modules>
