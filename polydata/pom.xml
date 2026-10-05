@@ -11,7 +11,7 @@
 
     <name>PolyData</name>
     <description>Dynamic multi-datasource framework for Spring Boot: child context isolation, hot-swappable DataSource, zone-aware high availability and ShardingSphere integration</description>
-    <url>https://github.com/LoveEleve/polydata</url>
+    <url>https://github.com/LoveEleve/poly/tree/main/polydata</url>
 
     <licenses>
         <license>
@@ -30,9 +30,9 @@
     </developers>
 
     <scm>
-        <url>https://github.com/LoveEleve/polydata</url>
-        <connection>scm:git:https://github.com/LoveEleve/polydata.git</connection>
-        <developerConnection>scm:git:git@github.com:LoveEleve/polydata.git</developerConnection>
+        <url>https://github.com/LoveEleve/poly</url>
+        <connection>scm:git:https://github.com/LoveEleve/poly.git</connection>
+        <developerConnection>scm:git:git@github.com:LoveEleve/poly.git</developerConnection>
     </scm>
 
     <modules>

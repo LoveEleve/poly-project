@@ -11,7 +11,7 @@
 
     <name>PolyZone</name>
     <description>Zone-aware multi-active routing framework for Spring Boot and Spring Cloud</description>
-    <url>https://github.com/LoveEleve/polyzone</url>
+    <url>https://github.com/LoveEleve/poly/tree/main/polyzone</url>
 
     <licenses>
         <license>
@@ -30,9 +30,9 @@
     </developers>
 
     <scm>
-        <url>https://github.com/LoveEleve/polyzone</url>
-        <connection>scm:git:https://github.com/LoveEleve/polyzone.git</connection>
-        <developerConnection>scm:git:git@github.com:LoveEleve/polyzone.git</developerConnection>
+        <url>https://github.com/LoveEleve/poly</url>
+        <connection>scm:git:https://github.com/LoveEleve/poly.git</connection>
+        <developerConnection>scm:git:git@github.com:LoveEleve/poly.git</developerConnection>
     </scm>
 
     <modules>
