@@ -58,11 +58,14 @@ import java.util.regex.Pattern;
  * <li>the single {@code StripPrefix=1} filter strips the {@code /{serviceId}} prefix, the
  * context path stays in the forwarded path</li>
  * <li>the route order prefers the more specific endpoint patterns</li>
+ * <li>the filters of the {@link PolyGatewayFilterRule filter rules} matching the endpoint are
+ * appended (e.g. rate limiting, retry)</li>
  * </ul>
  *
  * <p>The endpoints of all the instances of a service are merged (a union), so an endpoint exposed
  * by only one instance (e.g. during a canary release) is still routed. The endpoints matched by
- * the configured {@link WebEndpointExclusion}s get no route at all.
+ * the configured {@link WebEndpointExclusion}s get no route at all; a rule can be scoped to
+ * specific services through its {@code services} dimension.
  *
  * @author <a href="https://github.com/LoveEleve">LoveEleve</a>
  * @since 1.0.0
@@ -146,7 +149,7 @@ public class WebEndpointRouteDefinitionLocator implements RouteDefinitionLocator
         }
         List<RouteDefinition> routeDefinitions = new ArrayList<>(endpoints.size());
         for (WebEndpointMapping endpoint : endpoints) {
-            if (isExcluded(endpoint)) {
+            if (isExcluded(serviceId, endpoint)) {
                 logger.debug("The endpoint [{}] of the service [{}] is excluded from the routes", endpoint, serviceId);
                 continue;
             }
@@ -169,8 +172,30 @@ public class WebEndpointRouteDefinitionLocator implements RouteDefinitionLocator
         routeDefinition.setUri(URI.create("lb://" + serviceId));
         routeDefinition.setOrder(routeOrder(endpoint));
         routeDefinition.setPredicates(createPredicates(serviceId, contextPath, endpoint));
-        routeDefinition.setFilters(List.of(new FilterDefinition(STRIP_PREFIX_FILTER)));
+        routeDefinition.setFilters(new ArrayList<>(List.of(new FilterDefinition(STRIP_PREFIX_FILTER))));
+        applyFilterRules(serviceId, endpoint, routeDefinition);
         return routeDefinition;
+    }
+
+    /**
+     * Appends the filters of the {@link PolyGatewayFilterRule filter rules} matching the endpoint to
+     * its generated route (e.g. rate limiting, retry); the route keeps its {@code StripPrefix}.
+     */
+    private void applyFilterRules(String serviceId, WebEndpointMapping endpoint, RouteDefinition routeDefinition) {
+        List<PolyGatewayFilterRule> filterRules = this.properties.getFilterRules();
+        if (CollectionUtils.isEmpty(filterRules)) {
+            return;
+        }
+        for (PolyGatewayFilterRule filterRule : filterRules) {
+            if (filterRule.matches(serviceId, endpoint)) {
+                List<FilterDefinition> filters = filterRule.getFilters();
+                if (filters != null) {
+                    routeDefinition.getFilters().addAll(filters);
+                }
+                logger.debug("The filters {} of the rule are applied to the endpoint [{}] of the service [{}]",
+                        filters, endpoint, serviceId);
+            }
+        }
     }
 
     private List<PredicateDefinition> createPredicates(String serviceId, String contextPath, WebEndpointMapping endpoint) {
@@ -259,13 +284,13 @@ public class WebEndpointRouteDefinitionLocator implements RouteDefinitionLocator
         return -(literalTokens * 2) - variableTokens + (wildcards * 2);
     }
 
-    private boolean isExcluded(WebEndpointMapping endpoint) {
+    private boolean isExcluded(String serviceId, WebEndpointMapping endpoint) {
         List<WebEndpointExclusion> excludes = properties.getExcludes();
         if (excludes == null) {
             return false;
         }
         for (WebEndpointExclusion exclusion : excludes) {
-            if (exclusion.matches(endpoint)) {
+            if (exclusion.matches(serviceId, endpoint)) {
                 return true;
             }
         }

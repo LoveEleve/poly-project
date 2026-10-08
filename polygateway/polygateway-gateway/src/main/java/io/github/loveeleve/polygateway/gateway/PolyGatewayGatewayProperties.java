@@ -56,6 +56,11 @@ public class PolyGatewayGatewayProperties {
      */
     private List<WebEndpointExclusion> excludes = new LinkedList<>();
 
+    /**
+     * The rules adding the filters to the generated routes of the matching endpoints.
+     */
+    private List<PolyGatewayFilterRule> filterRules = new LinkedList<>();
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -70,5 +75,13 @@ public class PolyGatewayGatewayProperties {
 
     public void setExcludes(List<WebEndpointExclusion> excludes) {
         this.excludes = excludes;
+    }
+
+    public List<PolyGatewayFilterRule> getFilterRules() {
+        return filterRules;
+    }
+
+    public void setFilterRules(List<PolyGatewayFilterRule> filterRules) {
+        this.filterRules = filterRules;
     }
 }

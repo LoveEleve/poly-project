@@ -17,12 +17,15 @@
 package io.github.loveeleve.polygateway.gateway.predicate;
 
 import org.springframework.cloud.gateway.handler.predicate.AbstractRoutePredicateFactory;
+import org.springframework.cloud.gateway.support.ShortcutConfigurable.ShortcutType;
 import org.springframework.http.MediaType;
 import org.springframework.web.server.ServerWebExchange;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+
+import static org.springframework.cloud.gateway.support.ShortcutConfigurable.ShortcutType.GATHER_LIST;
 
 /**
  * The {@code Consumes} route predicate: the route matches when the {@code Content-Type} of the
@@ -48,6 +51,12 @@ public class ConsumesRoutePredicateFactory extends AbstractRoutePredicateFactory
     @Override
     public List<String> shortcutFieldOrder() {
         return List.of("mediaTypes");
+    }
+
+    @Override
+    public ShortcutType shortcutType() {
+        // Gather the positional values of the shortcut form into the mediaTypes list
+        return GATHER_LIST;
     }
 
     @Override

@@ -17,14 +17,21 @@
 package io.github.loveeleve.polygateway.gateway.predicate;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.boot.convert.ApplicationConversionService;
+import org.springframework.cloud.gateway.handler.predicate.PredicateDefinition;
+import org.springframework.cloud.gateway.support.ConfigurationService;
+import org.springframework.core.convert.ConversionService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.validation.Validator;
 import org.springframework.web.server.ServerWebExchange;
 
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -65,6 +72,28 @@ class RoutePredicateFactoriesTest {
         assertFalse(predicate.test(exchangeWithAccept(MediaType.TEXT_PLAIN)));
         // No Accept header accepts anything
         assertTrue(predicate.test(exchangeWithAccept(null)));
+    }
+
+    @Test
+    void testShortcutBindsEveryMediaType() {
+        Supplier<ConversionService> conversionService = () -> ApplicationConversionService.getSharedInstance();
+        Supplier<Validator> validator = () -> null;
+        ConfigurationService configurationService = new ConfigurationService(
+                new DefaultListableBeanFactory(), conversionService, validator);
+
+        ConsumesRoutePredicateFactory.Config consumesConfig = configurationService
+                .with(new ConsumesRoutePredicateFactory())
+                .name("Consumes")
+                .properties(new PredicateDefinition("Consumes=application/json,text/plain").getArgs())
+                .bind();
+        assertEquals(List.of("application/json", "text/plain"), consumesConfig.getMediaTypes());
+
+        ProducesRoutePredicateFactory.Config producesConfig = configurationService
+                .with(new ProducesRoutePredicateFactory())
+                .name("Produces")
+                .properties(new PredicateDefinition("Produces=application/json,text/plain").getArgs())
+                .bind();
+        assertEquals(List.of("application/json", "text/plain"), producesConfig.getMediaTypes());
     }
 
     private static ServerWebExchange exchangeWithContentType(MediaType contentType) {

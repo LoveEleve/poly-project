@@ -48,8 +48,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * End-to-end test of the PolyGateway gateway side through the full auto-configuration: a stub
- * discovery client publishes a service with the web endpoint metadata, a real HTTP server plays
+ * discovery client publishes the services with the web endpoint metadata, a real HTTP server plays
  * the downstream provider, and the requests are routed precisely through the generated routes.
+ * The exclusion rule is scoped to one service to prove the services dimension end to end.
  *
  * @author <a href="https://github.com/LoveEleve">LoveEleve</a>
  * @since 1.0.0
@@ -57,13 +58,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(classes = PolyGatewayGatewayE2ETest.TestApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
+                "polygateway.gateway.excludes[0].services=order-service",
                 "polygateway.gateway.excludes[0].patterns=/internal/**",
                 "polygateway.gateway.excludes[0].methods=POST",
+                "polygateway.gateway.filter-rules[0].services=order-service",
+                "polygateway.gateway.filter-rules[0].patterns=/orders/**",
+                "polygateway.gateway.filter-rules[0].filters[0]=AddResponseHeader=X-Filter-Rule,applied",
                 "spring.cloud.gateway.discovery.locator.enabled=false"})
 @AutoConfigureWebTestClient(timeout = "PT30S")
 class PolyGatewayGatewayE2ETest {
 
     private static final String SERVICE_ID = "order-service";
+
+    private static final String SECOND_SERVICE_ID = "audit-service";
 
     @SpringBootApplication(exclude = {
             org.springframework.cloud.client.discovery.simple.SimpleDiscoveryClientAutoConfiguration.class,
@@ -97,8 +104,16 @@ class PolyGatewayGatewayE2ETest {
                     WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
                             .id(2).patterns("/orders").methods("POST").consumes("application/json").build(),
                     WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
-                            .id(3).patterns("/internal/reconcile").methods("POST").build());
+                            .id(3).patterns("/internal/reconcile").methods("POST").build(),
+                    WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
+                            .id(4).patterns("/orders/bulk").methods("POST")
+                            .consumes("application/json", "text/plain").build());
             discoveryClient.setInstances(SERVICE_ID, List.of(instance(SERVICE_ID, downstream.port(), "/api", endpoints)));
+            List<WebEndpointMapping> auditEndpoints = List.of(
+                    WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
+                            .id(1).patterns("/internal/reconcile").methods("POST").build());
+            discoveryClient.setInstances(SECOND_SERVICE_ID,
+                    List.of(instance(SECOND_SERVICE_ID, downstream.port(), "/api", auditEndpoints)));
             eventPublisher.publishEvent(new HeartbeatEvent(this, "initial"));
 
             // GET with the path variable : Path + Method + StripPrefix
@@ -107,6 +122,10 @@ class PolyGatewayGatewayE2ETest {
                         .exchange().expectStatus().isOk().expectBody(String.class).returnResult().getResponseBody();
                 return "GET /api/orders/42".equals(body);
             });
+            // The filter rule is applied to the matching endpoint : the response header is added
+            webClient.get().uri("/order-service/api/orders/42")
+                    .exchange().expectStatus().isOk()
+                    .expectHeader().valueEquals("X-Filter-Rule", "applied");
             // POST with the matching media type : Path + Method + Consumes
             webClient.post().uri("/order-service/api/orders")
                     .contentType(MediaType.APPLICATION_JSON).bodyValue("{\"name\":\"x\"}")
@@ -116,9 +135,22 @@ class PolyGatewayGatewayE2ETest {
             webClient.post().uri("/order-service/api/orders")
                     .contentType(MediaType.TEXT_PLAIN).bodyValue("x")
                     .exchange().expectStatus().isNotFound();
+            // The endpoint consuming two media types : both content types match (GATHER_LIST shortcut)
+            webClient.post().uri("/order-service/api/orders/bulk")
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue("{}")
+                    .exchange().expectStatus().isOk();
+            webClient.post().uri("/order-service/api/orders/bulk")
+                    .contentType(MediaType.TEXT_PLAIN).bodyValue("x")
+                    .exchange().expectStatus().isOk();
             // The excluded endpoint has no route
             webClient.post().uri("/order-service/api/internal/reconcile")
                     .exchange().expectStatus().isNotFound();
+            // The same endpoint of the other service stays routed : the exclusion is service scoped ;
+            // the filter rule is scoped to order-service too, so the header must not be added
+            webClient.post().uri("/audit-service/api/internal/reconcile")
+                    .exchange().expectStatus().isOk()
+                    .expectHeader().doesNotExist("X-Filter-Rule");
+            assertEquals("/api/internal/reconcile", downstream.lastPathOf("POST"));
             // A GET to an unknown path has no route
             webClient.get().uri("/order-service/api/unknown")
                     .exchange().expectStatus().isNotFound();
@@ -127,7 +159,7 @@ class PolyGatewayGatewayE2ETest {
             // after the heartbeat
             List<WebEndpointMapping> refreshed = new ArrayList<>(endpoints);
             refreshed.add(WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
-                    .id(4).patterns("/orders/{id}/lines").methods("GET").build());
+                    .id(5).patterns("/orders/{id}/lines").methods("GET").build());
             discoveryClient.setInstances(SERVICE_ID, List.of(instance(SERVICE_ID, downstream.port(), "/api", refreshed)));
             eventPublisher.publishEvent(new HeartbeatEvent(this, "refreshed"));
             awaitUntil(() -> {

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.cloud.client.DefaultServiceInstance;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.cloud.gateway.filter.FilterDefinition;
 import org.springframework.cloud.gateway.handler.predicate.PredicateDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 
@@ -120,6 +121,56 @@ class WebEndpointRouteDefinitionLocatorTest {
 
         WebEndpointRouteDefinitionLocator locator = new WebEndpointRouteDefinitionLocator(discoveryClient, properties);
         assertTrue(locator.loadRouteDefinitions().isEmpty());
+    }
+
+    @Test
+    void testServiceScopedExclusion() {
+        WebEndpointMapping internal = WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
+                .id(1).patterns("/internal/reconcile").methods("POST").build();
+        StubDiscoveryClient discoveryClient = new StubDiscoveryClient();
+        discoveryClient.addInstance(instance("order-service", null, internal));
+        discoveryClient.addInstance(instance("pay-service", null, internal));
+
+        PolyGatewayGatewayProperties properties = new PolyGatewayGatewayProperties();
+        WebEndpointExclusion exclusion = new WebEndpointExclusion();
+        exclusion.setServices("pay-service");
+        exclusion.setPatterns("/internal/**");
+        properties.getExcludes().add(exclusion);
+
+        WebEndpointRouteDefinitionLocator locator = new WebEndpointRouteDefinitionLocator(discoveryClient, properties);
+        List<RouteDefinition> routes = locator.loadRouteDefinitions();
+        assertEquals(1, routes.size());
+        assertEquals("polygateway:order-service:1", routes.get(0).getId());
+    }
+
+    @Test
+    void testFilterRuleAppliedToMatchingEndpointsOnly() {
+        WebEndpointMapping orders = WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
+                .id(1).patterns("/orders/{id}").methods("GET").build();
+        StubDiscoveryClient discoveryClient = new StubDiscoveryClient();
+        discoveryClient.addInstance(instance("order-service", null, orders));
+        discoveryClient.addInstance(instance("pay-service", null, orders));
+
+        PolyGatewayGatewayProperties properties = new PolyGatewayGatewayProperties();
+        PolyGatewayFilterRule rule = new PolyGatewayFilterRule();
+        rule.setServices("order-service");
+        rule.setPatterns("/orders/**");
+        rule.setFilters(List.of(new FilterDefinition("AddResponseHeader=X-Rule,on")));
+        properties.getFilterRules().add(rule);
+
+        List<RouteDefinition> routes = new WebEndpointRouteDefinitionLocator(discoveryClient, properties)
+                .loadRouteDefinitions();
+        assertEquals(2, routes.size());
+
+        RouteDefinition ordersRoute = routes.stream()
+                .filter(route -> "polygateway:order-service:1".equals(route.getId())).findFirst().orElseThrow();
+        RouteDefinition payRoute = routes.stream()
+                .filter(route -> "polygateway:pay-service:1".equals(route.getId())).findFirst().orElseThrow();
+
+        assertTrue(ordersRoute.getFilters().stream()
+                .anyMatch(filter -> "AddResponseHeader".equals(filter.getName())));
+        assertFalse(payRoute.getFilters().stream()
+                .anyMatch(filter -> "AddResponseHeader".equals(filter.getName())));
     }
 
     @Test

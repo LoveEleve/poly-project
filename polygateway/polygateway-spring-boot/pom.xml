@@ -26,6 +26,17 @@
             <groupId>io.github.loveeleve</groupId>
             <artifactId>polygateway-gateway</artifactId>
         </dependency>
+        <!-- Compile-time deps of the gateway auto-configuration；optional 保证它们不透传给 provider(MVC) 应用 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>

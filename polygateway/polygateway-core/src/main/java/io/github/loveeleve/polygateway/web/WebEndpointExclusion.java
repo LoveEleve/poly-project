@@ -31,6 +31,8 @@ import java.util.Objects;
  * <ul>
  * <li>{@code patterns} : required, an endpoint pattern matches the rule when any endpoint pattern
  * matches any rule pattern (Ant style, e.g. {@code /internal/**})</li>
+ * <li>{@code services} : the rule applies only to the endpoints of the given service ids (exact
+ * match); an empty dimension applies to every service</li>
  * <li>{@code methods} : the endpoint is matched when the rule methods intersect the endpoint
  * methods; an endpoint without method condition accepts any method and is matched</li>
  * <li>{@code params} / {@code headers} : all the rule values must be declared by the endpoint</li>
@@ -55,6 +57,8 @@ public class WebEndpointExclusion {
 
     private String[] patterns;
 
+    private String[] services;
+
     private String[] methods;
 
     private String[] params;
@@ -66,22 +70,43 @@ public class WebEndpointExclusion {
     private String[] produces;
 
     /**
-     * Tests whether the given endpoint is excluded by this rule.
+     * Tests whether the given endpoint is excluded by this rule. For a rule scoped to the services
+     * (see {@link #setServices(String...)}) the service id is unknown, so the rule never matches.
      *
      * @param mapping the web endpoint
      * @return {@code true} when the endpoint must not be routed
      */
     public boolean matches(WebEndpointMapping mapping) {
+        return matches(null, mapping);
+    }
+
+    /**
+     * Tests whether the given endpoint of the given service is excluded by this rule.
+     *
+     * @param serviceId the service id of the endpoint, {@code null} when unknown
+     * @param mapping   the web endpoint
+     * @return {@code true} when the endpoint must not be routed
+     */
+    public boolean matches(String serviceId, WebEndpointMapping mapping) {
         if (isEmpty(patterns)) {
             // Without patterns the rule would match everything, treat it as no rule
             return false;
         }
-        return anyPatternMatches(mapping.getPatterns())
+        return servicesMatch(serviceId)
+                && anyPatternMatches(mapping.getPatterns())
                 && methodsMatch(mapping.getMethods())
                 && declaredMatch(mapping.getParams(), params)
                 && declaredMatch(mapping.getHeaders(), headers)
                 && intersects(mapping.getConsumes(), consumes)
                 && intersects(mapping.getProduces(), produces);
+    }
+
+    private boolean servicesMatch(String serviceId) {
+        if (isEmpty(services)) {
+            // Without services the rule applies to every service
+            return true;
+        }
+        return serviceId != null && contains(services, serviceId);
     }
 
     public String[] getPatterns() {
@@ -90,6 +115,14 @@ public class WebEndpointExclusion {
 
     public void setPatterns(String... patterns) {
         this.patterns = patterns;
+    }
+
+    public String[] getServices() {
+        return services;
+    }
+
+    public void setServices(String... services) {
+        this.services = services;
     }
 
     public String[] getMethods() {
@@ -200,6 +233,7 @@ public class WebEndpointExclusion {
         }
         WebEndpointExclusion that = (WebEndpointExclusion) o;
         return Arrays.equals(patterns, that.patterns)
+                && Arrays.equals(services, that.services)
                 && Arrays.equals(methods, that.methods)
                 && Arrays.equals(params, that.params)
                 && Arrays.equals(headers, that.headers)
@@ -209,13 +243,14 @@ public class WebEndpointExclusion {
 
     @Override
     public int hashCode() {
-        return Objects.hash(Arrays.hashCode(patterns), Arrays.hashCode(methods), Arrays.hashCode(params),
-                Arrays.hashCode(headers), Arrays.hashCode(consumes), Arrays.hashCode(produces));
+        return Objects.hash(Arrays.hashCode(patterns), Arrays.hashCode(services), Arrays.hashCode(methods),
+                Arrays.hashCode(params), Arrays.hashCode(headers), Arrays.hashCode(consumes), Arrays.hashCode(produces));
     }
 
     @Override
     public String toString() {
         return "WebEndpointExclusion{patterns=" + Arrays.toString(patterns)
+                + ", services=" + Arrays.toString(services)
                 + ", methods=" + Arrays.toString(methods)
                 + ", params=" + Arrays.toString(params)
                 + ", headers=" + Arrays.toString(headers)

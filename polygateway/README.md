@@ -103,31 +103,39 @@ polygateway.gateway.excludes[0].methods=POST
 | `polygateway.provider.enabled` | `true` | 是否收集并发布端点（仅 Servlet MVC 应用生效） |
 | `polygateway.gateway.enabled` | `true` | 是否生成端点路由 |
 | `polygateway.gateway.excludes[n].patterns` | - | 排除规则（Ant 风格，必填，不填则该规则永不命中） |
+| `polygateway.gateway.excludes[n].services` | - | 只作用于指定服务（精确匹配，多个用逗号分隔；不填 = 所有服务） |
 | `polygateway.gateway.excludes[n].methods` | - | 排除的方法（交集即命中；端点未声明方法视为任意方法） |
 | `polygateway.gateway.excludes[n].params` / `.headers` | - | 须全部被端点声明才命中 |
 | `polygateway.gateway.excludes[n].consumes` / `.produces` | - | 与端点取交集即命中 |
+| `polygateway.gateway.filter-rules[n].services` / `.patterns` / `.methods` | - | 定向过滤器规则的作用范围（不填 = 不限制） |
+| `polygateway.gateway.filter-rules[n].filters` | - | 追加到匹配端点路由上的过滤器（SCG `FilterDefinition` 语法，如 `RequestRateLimiter`/`Retry`） |
 
 ## 设计取舍与限制
 
 - **一个生效的 DiscoveryClient**：应用中应当只有一个生效的注册中心客户端；多个客户端并存时负载均衡拿到的实例列表不可预期（测试中曾因此拿到空列表）。生产（Nacos/Eureka 单一注册中心）天然满足。
-- **端点级排除是"整端点"粒度**：一条规则命中端点即不生成该端点的任何路由（与"请求级精确排除"语义略有不同，已在文档注明）。
+- **端点级排除是"整端点"粒度**：一条规则命中端点即不生成该端点的任何路由（与"请求级精确排除"语义略有不同，已在文档注明）；规则可用 `services` 限定到指定服务，不填则对所有服务生效。
+- **定向过滤器规则**：生成路由默认只带 `StripPrefix=1`；`filter-rules` 按服务/端点追加治理过滤器（如 `RequestRateLimiter`/`Retry`），与全局 `default-filters` 互补；规则里不要再写 `StripPrefix`（会与路由自带的重复，双重剥前缀）。
 - **字面值转义**：端点条件值转为官方谓词参数时做正则转义（精确匹配，如 `1.0` 不会匹配 `1x0`）；`!` 与 `name!=value` 类条件官方谓词无法表达，会被跳过并打日志。
-- **刷新依赖心跳**：路由在每次注册中心心跳后重算；无心跳发布的注册中心实现需自行发布 `HeartbeatEvent`（或 `RefreshRoutesEvent`）。
+- **刷新依赖心跳**：路由在每次注册中心心跳后重算；无心跳发布的注册中心实现需自行发布 `HeartbeatEvent`（或 `RefreshRoutesEvent`）。**Nacos / SCA 2023 注意**：`HeartbeatEvent` 发布器（`NacosDiscoveryHeartBeatPublisher`）是**条件创建**——`spring.cloud.nacos.discovery.heart-beat.enabled=true` / `spring.cloud.gateway.discovery.locator.enabled=true` / Spring Boot Admin 三选一；用 polygateway 时通常关闭 locator（避免官方服务级路由），**须显式打开 `heart-beat.enabled`**，否则路由刷新静默失效（已在真实环境实验中实测）。
 - **Provider 侧目前只支持 Spring MVC**：WebFlux 业务应用的端点收集在 Roadmap。
 - **Kafka/配置中心**：本框架不涉及，与其它 Poly 项目（PolyConfig/PolyCache）正交。
 
 ## 测试
 
-29 个测试，全部使用进程内依赖（Mock/Stub 注册中心、嵌入式 HTTP 下游、嵌入式 `SimpleDiscoveryClient` 风格桩）：
+39 个测试，全部使用进程内依赖（Mock/Stub 注册中心、嵌入式 HTTP 下游、嵌入式 `SimpleDiscoveryClient` 风格桩）：
 
-- `polygateway-core`（13）：端点模型、JSON 协议往返、排除规则匹配矩阵
+- `polygateway-core`（15）：端点模型、JSON 协议往返、排除规则匹配矩阵（含服务作用域）
 - `polygateway-provider`（4）：MVC 端点收集（跳过 Boot 基础设施接口、确定性 id）、注册前元数据发布
-- `polygateway-gateway`（8）：端点路由生成（排除/并集/上下文组合/排序）、`Consumes`/`Produces` 谓词、心跳刷新
-- `polygateway-spring-boot`（条件测试 + **全链路 E2E**：桩注册中心 + 真实下游 + `WebTestClient` 验证六维匹配、剥离前缀、context-path、excludes、404 语义与心跳刷新）
+- `polygateway-gateway`（16）：端点路由生成（排除/服务作用域/并集/上下文组合/排序）、定向过滤器规则、`Consumes`/`Produces` 谓词（含多值简写绑定）、心跳刷新
+- `polygateway-spring-boot`（条件测试 + **全链路 E2E**：桩注册中心 + 真实下游 + `WebTestClient` 验证六维匹配、剥离前缀、context-path、excludes 服务作用域、过滤器规则、404 语义与心跳刷新）
 
 ```bash
 ./mvnw test
 ```
+
+## 真实环境验证
+
+配套实验（xhs-demo 仓库 `polygateway-lab/`）：真实 Nacos + 真实 MVC 应用 + 真实 SCG 网关，实测端点级路由、六维匹配、服务作用域排除、404 语义与心跳刷新；并暴露/修复了两个 in-process 测试覆盖不到的集成问题（SCG 传递依赖穿透、SCA 2023 心跳条件创建）。
 
 ## License
 

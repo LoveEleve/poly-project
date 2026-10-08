@@ -11,9 +11,9 @@
 | [polyconfig](./polyconfig) | 配置中心统一抽象：声明式 `@PropertySource` 扩展 + 属性级变更事件（名 + 新旧值 + 来源）+ 后端适配器模板 | Spring Boot 3.2 | 24 |
 | [polydata](./polydata) | 动态多数据源与分库分表：子上下文隔离、热替换、同区域优先/故障转移、ORM 同进程并存、ShardingSphere YAML 直构 | Spring Boot 3.2 / ShardingSphere 5.5.1 | 80 |
 | [polycache](./polycache) | Redis 多机房复制：Redisson 命令级无侵入拦截 → 写命令过滤 → Kafka 分区 → 语义重放（防回环 / 至少一次 / 分区内保序），含动态连接路由与拦截器 SPI | Spring Boot 3.2 / Redisson 3.27 / Kafka | 60 |
-| [polygateway](./polygateway) | 端点级网关路由（Spring Cloud Gateway WebFlux）：服务发布端点元数据，网关生成 `lb://` 精确路由（官方谓词 + 响应式负载均衡，零阻塞） | Spring Cloud Gateway 4.1 | 29 |
+| [polygateway](./polygateway) | 端点级网关路由（Spring Cloud Gateway WebFlux）：服务发布端点元数据，网关生成 `lb://` 精确路由（官方谓词 + 响应式负载均衡，零阻塞） | Spring Cloud Gateway 4.1 | 39 |
 
-合计 **325 个测试**（H2 纯内存 / Embedded Kafka / 3 节点 Redis 真集群 / Docker 双机房演示）。
+合计 **335 个测试**（H2 纯内存 / Embedded Kafka / 3 节点 Redis 真集群 / Docker 双机房演示）。
 
 ## 构建
 

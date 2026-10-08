@@ -40,6 +40,25 @@ class WebEndpointExclusionTest {
     }
 
     @Test
+    void testServices() {
+        WebEndpointExclusion exclusion = exclusion("/internal/**");
+        exclusion.setServices("pay-service");
+
+        assertTrue(exclusion.matches("pay-service", endpoint("/internal/reconcile")));
+        assertFalse(exclusion.matches("order-service", endpoint("/internal/reconcile")));
+        // A service scoped rule can not match without the service id
+        assertFalse(exclusion.matches(endpoint("/internal/reconcile")));
+    }
+
+    @Test
+    void testEmptyServicesAppliesToEveryService() {
+        WebEndpointExclusion exclusion = exclusion("/internal/**");
+
+        assertTrue(exclusion.matches("order-service", endpoint("/internal/reconcile")));
+        assertTrue(exclusion.matches("pay-service", endpoint("/internal/reconcile")));
+    }
+
+    @Test
     void testNoPatternNeverMatches() {
         WebEndpointExclusion exclusion = new WebEndpointExclusion();
         exclusion.setMethods("GET");
