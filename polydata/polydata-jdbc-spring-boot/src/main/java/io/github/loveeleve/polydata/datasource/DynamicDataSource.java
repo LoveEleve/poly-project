@@ -193,12 +193,21 @@ public class DynamicDataSource implements DataSource, InitializingBean, Disposab
         DynamicJdbcConfig dynamicDataSourceConfig = createDynamicDataSourceConfig(dynamicJdbcConfig);
         DynamicJdbcChildContext dynamicDataSourceChildContext = new DynamicJdbcChildContext(
                 dynamicDataSourceConfig, dynamicJdbcConfigPropertyName, context, idGenerator);
-        // Merge Parent Environment
-        dynamicDataSourceChildContext.mergeParentEnvironment();
-        // Refresh Context
-        dynamicDataSourceChildContext.refresh();
-        // Get the DataSource Bean from Child Context
-        latestDataSource = getDataSource(dynamicDataSourceChildContext);
+        try {
+            // Merge Parent Environment
+            dynamicDataSourceChildContext.mergeParentEnvironment();
+            // Refresh Context
+            dynamicDataSourceChildContext.refresh();
+            // Get the DataSource Bean from Child Context
+            latestDataSource = getDataSource(dynamicDataSourceChildContext);
+        } catch (RuntimeException | Error e) {
+            try {
+                closeDynamicDataSourceChildContext(dynamicDataSourceChildContext, false);
+            } catch (Throwable closeError) {
+                e.addSuppressed(closeError);
+            }
+            throw e;
+        }
         synchronized (mutex) {
             // Set DataSource
             DataSource previousDataSource = DynamicDataSource.this.delegate;

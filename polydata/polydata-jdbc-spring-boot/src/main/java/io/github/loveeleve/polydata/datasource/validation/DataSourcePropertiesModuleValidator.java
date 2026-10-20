@@ -44,12 +44,11 @@ import static java.util.Collections.emptyList;
  */
 public class DataSourcePropertiesModuleValidator extends AbstractConfigValidator {
 
+    private static final String DATA_SOURCE_MODULE_INFO = "datasource module";
+
     @Override
     public void validate(DynamicJdbcConfig dynamicJdbcConfig, String shardingJdbConfigPropertyName, ValidationErrors validationErrors) {
         validateDataSource(dynamicJdbcConfig, validationErrors);
-        if (dynamicJdbcConfig.hasDataSource() || dynamicJdbcConfig.hasHighAvailabilityDataSource()) {
-            validateDataSourcePropertiesList(dynamicJdbcConfig, validationErrors);
-        }
     }
 
     private void validateDataSource(DynamicJdbcConfig dynamicJdbcConfig, ValidationErrors validationErrors) {
@@ -64,11 +63,16 @@ public class DataSourcePropertiesModuleValidator extends AbstractConfigValidator
                         dynamicJdbcConfig.getName());
             }
             validateHighAvailabilityDataSource(dynamicJdbcConfig, validationErrors);
+        } else {
+            List<Map<String, String>> dataSourcePropertiesList = dynamicJdbcConfig.getDataSourcePropertiesList();
+            validateSingleDataSourceSize(dynamicJdbcConfig, dataSourcePropertiesList, DATA_SOURCE_MODULE_INFO, validationErrors);
+            validateDataSourcePropertiesList(dynamicJdbcConfig, dataSourcePropertiesList, null, validationErrors);
         }
     }
 
     private void validateHighAvailabilityDataSource(DynamicJdbcConfig dynamicJdbcConfig, ValidationErrors validationErrors) {
-        Map<String, List<Map<String, Object>>> highAvailabilityDataSource = dynamicJdbcConfig.getHighAvailabilityDataSource();
+        Map<String, List<Map<String, String>>> highAvailabilityDataSource =
+                dynamicJdbcConfig.getHighAvailabilityDataSourcePropertiesMap();
 
         int size = highAvailabilityDataSource.size();
 
@@ -79,17 +83,35 @@ public class DataSourcePropertiesModuleValidator extends AbstractConfigValidator
         if (!highAvailabilityDataSource.containsKey(DEFAULT_ZONE)) {
             validationErrors.addError("'ha-datasource' module must configure default zone '{}'", DEFAULT_ZONE);
         }
+
+        highAvailabilityDataSource.forEach((zone, dataSourcePropertiesList) -> {
+            if (dataSourcePropertiesList == null || dataSourcePropertiesList.isEmpty()) {
+                validationErrors.addError("'ha-datasource' module's zone '{}' must configure at least one datasource", zone);
+                return;
+            }
+            validateSingleDataSourceSize(dynamicJdbcConfig, dataSourcePropertiesList,
+                    format("zone '{}'", zone), validationErrors);
+            validateDataSourcePropertiesList(dynamicJdbcConfig, dataSourcePropertiesList, zone, validationErrors);
+        });
     }
 
-    private void validateDataSourcePropertiesList(DynamicJdbcConfig dynamicJdbcConfig, ValidationErrors validationErrors) {
-        List<Map<String, String>> dataSourcePropertiesList = dynamicJdbcConfig.getDataSourcePropertiesList();
+    private void validateSingleDataSourceSize(DynamicJdbcConfig dynamicJdbcConfig, List<Map<String, String>> dataSourcePropertiesList,
+                                              String dataSourceInfo, ValidationErrors validationErrors) {
+        if (!dynamicJdbcConfig.hasShardingDataSource() && dataSourcePropertiesList.size() != 1) {
+            validationErrors.addError("{} must configure exactly one datasource unless the sharding-sphere module is present, actual : '{}'",
+                    dataSourceInfo, dataSourcePropertiesList.size());
+        }
+    }
+
+    private void validateDataSourcePropertiesList(DynamicJdbcConfig dynamicJdbcConfig, List<Map<String, String>> dataSourcePropertiesList,
+                                                  String zone, ValidationErrors validationErrors) {
         int size = dataSourcePropertiesList.size();
         for (int index = 0; index < size; index++) {
             Map<String, String> dataSourceProperties = dataSourcePropertiesList.get(index);
-            validateDataSourceProperties(dynamicJdbcConfig, dataSourceProperties, index, validationErrors);
+            validateDataSourceProperties(dynamicJdbcConfig, dataSourceProperties, index, zone, validationErrors);
             List<Map<String, String>> previousDataSourcePropertiesList = getPreviousDataSourcePropertiesList(dataSourcePropertiesList, index);
-            validateDuplicatedProperties(dynamicJdbcConfig, dataSourceProperties, previousDataSourcePropertiesList, index, validationErrors,
-                    DataSourceConstants.NAME_PROPERTY_NAME, DataSourceConstants.JDBC_URL_PROPERTY_NAME);
+            validateDuplicatedProperties(dynamicJdbcConfig, dataSourceProperties, previousDataSourcePropertiesList, index, zone,
+                    validationErrors, DataSourceConstants.NAME_PROPERTY_NAME, DataSourceConstants.JDBC_URL_PROPERTY_NAME);
         }
     }
 
@@ -101,15 +123,16 @@ public class DataSourcePropertiesModuleValidator extends AbstractConfigValidator
     }
 
     private void validateDuplicatedProperties(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties,
-                                              List<Map<String, String>> previousDataSourcePropertiesList, int index, ValidationErrors errors, String... propertyNames) {
+                                              List<Map<String, String>> previousDataSourcePropertiesList, int index, String zone,
+                                              ValidationErrors errors, String... propertyNames) {
         for (Map<String, String> previousDataSourceProperties : previousDataSourcePropertiesList) {
             for (String propertyName : propertyNames) {
                 String previousPropertyValue = previousDataSourceProperties.get(propertyName);
                 String propertyValue = dataSourceProperties.get(propertyName);
                 if (StringUtils.hasText(previousPropertyValue) && StringUtils.hasText(propertyValue)
                         && Objects.equals(previousPropertyValue, propertyValue)) {
-                    String previousDataSourceModuleInfo = getDataSourceModuleInfo(dynamicJdbcConfig, previousDataSourceProperties, index);
-                    String dataSourceModuleInfo = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index);
+                    String previousDataSourceModuleInfo = getDataSourceModuleInfo(dynamicJdbcConfig, previousDataSourceProperties, index, zone);
+                    String dataSourceModuleInfo = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index, zone);
                     errors.addError("The duplicated property [name : '{}' , value : '{}'] appears between {} and {}", propertyName, propertyValue,
                             previousDataSourceModuleInfo, dataSourceModuleInfo);
                 }
@@ -118,48 +141,49 @@ public class DataSourcePropertiesModuleValidator extends AbstractConfigValidator
     }
 
     private void validateDataSourceProperties(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index,
-                                              ValidationErrors errors) {
-        validateDataSourceRequiredProperties(dynamicJdbcConfig, dataSourceProperties, index, errors, DataSourceConstants.NAME_PROPERTY_NAME, DataSourceConstants.TYPE_PROPERTY_NAME,
-                DataSourceConstants.DRIVER_CLASS_NAME_PROPERTY_NAME, DataSourceConstants.USER_NAME_PROPERTY_NAME, DataSourceConstants.PASSWORD_NAME_PROPERTY_NAME);
-        validateDataSourceClassesPresent(dynamicJdbcConfig, dataSourceProperties, index, errors, DataSourceConstants.TYPE_PROPERTY_NAME,
-                DataSourceConstants.DRIVER_CLASS_NAME_PROPERTY_NAME);
-        validateDataSourceJdbcUrl(dynamicJdbcConfig, dataSourceProperties, index, errors);
+                                              String zone, ValidationErrors errors) {
+        validateDataSourceRequiredProperties(dynamicJdbcConfig, dataSourceProperties, index, zone, errors, DataSourceConstants.NAME_PROPERTY_NAME,
+                DataSourceConstants.TYPE_PROPERTY_NAME, DataSourceConstants.DRIVER_CLASS_NAME_PROPERTY_NAME,
+                DataSourceConstants.USER_NAME_PROPERTY_NAME, DataSourceConstants.PASSWORD_NAME_PROPERTY_NAME);
+        validateDataSourceClassesPresent(dynamicJdbcConfig, dataSourceProperties, index, zone, errors,
+                DataSourceConstants.TYPE_PROPERTY_NAME, DataSourceConstants.DRIVER_CLASS_NAME_PROPERTY_NAME);
+        validateDataSourceJdbcUrl(dynamicJdbcConfig, dataSourceProperties, index, zone, errors);
     }
 
     private void validateDataSourceRequiredProperties(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index,
-                                                      ValidationErrors errors, String... propertyNames) {
+                                                      String zone, ValidationErrors errors, String... propertyNames) {
         for (String propertyName : propertyNames) {
-            validateDataSourceRequiredProperty(dynamicJdbcConfig, dataSourceProperties, index, errors, propertyName);
+            validateDataSourceRequiredProperty(dynamicJdbcConfig, dataSourceProperties, index, zone, errors, propertyName);
         }
     }
 
     private void validateDataSourceRequiredProperty(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index,
-                                                    ValidationErrors errors, String propertyName) {
+                                                    String zone, ValidationErrors errors, String propertyName) {
         String propertyValue = dataSourceProperties.get(propertyName);
         if (!StringUtils.hasText(propertyValue)) {
-            String info = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index);
+            String info = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index, zone);
             errors.addError("{} must have '{}' property", info, propertyName);
         }
     }
 
     private void validateDataSourceClassesPresent(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index,
-                                                  ValidationErrors errors, String... propertyNames) {
+                                                  String zone, ValidationErrors errors, String... propertyNames) {
         for (String propertyName : propertyNames) {
-            validateDataSourceClassPresent(dynamicJdbcConfig, dataSourceProperties, index, errors, propertyName);
+            validateDataSourceClassPresent(dynamicJdbcConfig, dataSourceProperties, index, zone, errors, propertyName);
         }
     }
 
     private void validateDataSourceClassPresent(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index,
-                                                ValidationErrors errors, String propertyName) {
+                                                String zone, ValidationErrors errors, String propertyName) {
         String className = dataSourceProperties.get(propertyName);
         if (!isPresent(className, classLoader)) {
-            String info = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index);
+            String info = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index, zone);
             errors.addError("{} '{}' property -> class '{}' can't be found", info, propertyName, className);
         }
     }
 
     private void validateDataSourceJdbcUrl(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index,
-                                           ValidationErrors errors) {
+                                           String zone, ValidationErrors errors) {
         Map.Entry<String, String> jdbcURLEntry = DynamicJdbcConfigUtils.getDataSourceUrlEntry(dataSourceProperties);
         String jdbcURL = null;
         if (jdbcURLEntry != null) {
@@ -167,22 +191,21 @@ public class DataSourcePropertiesModuleValidator extends AbstractConfigValidator
         }
 
         if (!StringUtils.hasText(jdbcURL)) {
-            String info = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index);
+            String info = getDataSourceModuleInfo(dynamicJdbcConfig, dataSourceProperties, index, zone);
             errors.addError("{} '{}' property must be present", info, Arrays.asList(DataSourceConstants.JDBC_URL_PROPERTY_NAMES));
         }
     }
 
-    private String getDataSourceModuleInfo(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index) {
-        boolean sourceFromHighAvailabilityDataSource = dynamicJdbcConfig.hasHighAvailabilityDataSource();
+    private String getDataSourceModuleInfo(DynamicJdbcConfig dynamicJdbcConfig, Map<String, String> dataSourceProperties, int index,
+                                           String zone) {
         String name = DynamicJdbcConfigUtils.getDataSourceName(dataSourceProperties);
 
         final String info;
 
-        if (sourceFromHighAvailabilityDataSource) {
-            String zone = dynamicJdbcConfig.getZoneContext().getZone();
+        if (zone != null) {
             info = format("{} module [index : {} , name : '{}' , zone : '{}']", HIGH_AVAILABILITY_DATASOURCE_MODULE, index, name, zone);
         } else {
-            info = format("{} module [index : {} , name : '{}']", DATASOURCE_MODULE, index, name);;
+            info = format("{} module [index : {} , name : '{}']", DATASOURCE_MODULE, index, name);
         }
 
         return info;

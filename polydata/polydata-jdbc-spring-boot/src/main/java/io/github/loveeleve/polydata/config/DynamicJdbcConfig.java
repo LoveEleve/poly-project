@@ -278,6 +278,15 @@ public class DynamicJdbcConfig implements BeanFactoryAware {
         return unmodifiableMap(dataSourceMap);
     }
 
+    /**
+     * @return the flattened properties of all zones of the high availability datasource, or an empty
+     * map when the high availability datasource is not configured
+     */
+    @JsonIgnore
+    public Map<String, List<Map<String, String>>> getHighAvailabilityDataSourcePropertiesMap() {
+        return highAvailabilityDataSourcePropertiesMap == null ? emptyMap() : highAvailabilityDataSourcePropertiesMap;
+    }
+
     @Override
     public boolean equals(Object obj) {
         // Cost a little performance

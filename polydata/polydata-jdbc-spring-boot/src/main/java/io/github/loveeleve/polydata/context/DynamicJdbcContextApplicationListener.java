@@ -27,6 +27,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -85,6 +86,8 @@ public class DynamicJdbcContextApplicationListener extends OnceApplicationPrepar
             return;
         }
 
+        validateDynamicJdbcConfigs(dynamicJdbcConfigs);
+
         registerPropagatingDynamicJdbcConfigChangedEventListener(dynamicJdbcConfigs, context);
 
         boolean multiple = dynamicJdbcConfigSize > 1;
@@ -101,6 +104,33 @@ public class DynamicJdbcContextApplicationListener extends OnceApplicationPrepar
         }
 
 
+    }
+
+    void validateDynamicJdbcConfigs(Map<String, DynamicJdbcConfig> dynamicJdbcConfigs) {
+        Map<String, String> propertyNamesByName = new HashMap<>(dynamicJdbcConfigs.size());
+        int primaryCount = 0;
+        for (Map.Entry<String, DynamicJdbcConfig> entry : dynamicJdbcConfigs.entrySet()) {
+            DynamicJdbcConfig dynamicJdbcConfig = entry.getValue();
+            String name = dynamicJdbcConfig.getName();
+            if (name != null) {
+                String previousPropertyName = propertyNamesByName.putIfAbsent(name, entry.getKey());
+                if (previousPropertyName != null) {
+                    throw new IllegalArgumentException("The DynamicJdbcConfig name['" + name
+                            + "'] must be unique, but it is configured by '" + previousPropertyName + "' and '"
+                            + entry.getKey() + "'");
+                }
+            }
+            if (dynamicJdbcConfig.isPrimary()) {
+                primaryCount++;
+            }
+        }
+        if (primaryCount > 1) {
+            throw new IllegalArgumentException("At most one DynamicJdbcConfig can be configured as primary, actual : " + primaryCount);
+        }
+        if (dynamicJdbcConfigs.size() > 1 && primaryCount == 0) {
+            logger.warn("There are {} DynamicJdbcConfigs but none is configured as primary. "
+                    + "Use \"primary\":true on one config when injecting a DataSource by type.", dynamicJdbcConfigs.size());
+        }
     }
 
     private void registerPropagatingDynamicJdbcConfigChangedEventListener(Map<String, DynamicJdbcConfig> dynamicJdbcConfigs,

@@ -17,7 +17,7 @@ polydata.jdbc.configs.orders={"name":"orders","ha-datasource":{ \
 
 启动后 PolyData 会：
 
-1. 为这套配置创建一个**隔离的子 Spring 上下文**（独立的数据源 / MyBatis / 事务），并把 `DataSource`、`TransactionManager`、`SqlSessionFactory` 等 Bean **升迁**到父上下文；
+1. 多配置时为每套配置创建一个**隔离的子 Spring 上下文**（独立的数据源 / MyBatis / 事务），并把 `DataSource`、`TransactionManager`、`SqlSessionFactory` 等 Bean **升迁**到父上下文；单配置复用父上下文运行配置管道，只有 `DynamicDataSource` 内部再建 datasource 子上下文；
 2. 服务调用时按 **PolyZone 的当前区域** 选择对应区域的库（同区域优先），区域切换事件触发 **DataSource 无重启热替换**；
 3. 配置中心改配置时（PolyConfig 统一事件），同样触发热替换；
 4. `sharding-sphere` 模块存在时，直接把 ShardingSphere 5.5.1 的数据源构建出来，物理库从同一份配置读取。
@@ -27,7 +27,7 @@ polydata.jdbc.configs.orders={"name":"orders","ha-datasource":{ \
 | 能力 | 说明 |
 |------|------|
 | 模块化设计 | MyBatis / MyBatis-Plus / Transaction / DataSource / 多活（ha-datasource）/ ShardingSphere 六类模块，统一走 4 个 SPI 扩展点 |
-| 动态 Spring 应用上下文 | 每个配置一个 `DynamicJdbcChildContext`，多配置并行初始化；Bean 选择性升迁父上下文 |
+| 动态 Spring 应用上下文 | 多配置时每个配置一个 `DynamicJdbcChildContext`，并行初始化并选择性升迁 Bean；单配置复用父上下文，DataSource 内部再建 datasource 子上下文 |
 | JDBC DataSource 动态更新 | `DynamicDataSource` 深克隆配置 → 重建子上下文 → `volatile + synchronized` 原子替换 delegate → 延迟关闭旧上下文（等在途请求结束） |
 | 同区域优先 | `ha-datasource` 按 `ZoneContext.getZone()` 选库，缺省回退 `defaultZone` |
 | 故障转移 / 故障恢复 | 监听 PolyZone `ZoneContextChangedEvent` 重建 DataSource；配置中心回滚后同样自动切回 |
@@ -50,7 +50,7 @@ DynamicJdbcContextApplicationListener (ApplicationPreparedEvent)
        6. ConfigBeanDefinitionRegistrar SPI（注册事务/ORM/分片等 BeanDefinition）
 
 DynamicDataSource（父上下文中的门面）
-  └─ DynamicJdbcChildContext（每个配置一个子上下文）
+  └─ DynamicJdbcChildContext（多配置时每个配置一个子上下文；单配置只有 datasource 子上下文）
        ├─ 物理 DataSource / ShardingSphere DataSource
        ├─ MyBatis / MyBatis-Plus / Transaction（按模块装配，互斥）
        └─ Bean 升迁 -> 父上下文（DataSource / TransactionManager / SqlSessionFactory）
@@ -119,6 +119,8 @@ polydata.jdbc.configs.user={"name":"user","datasource":[{"name":"ds","url":"jdbc
 polydata.jdbc.configs.goods={"name":"goods","datasource":[{"name":"ds","url":"jdbc:mysql://127.0.0.1:3306/goods"}],"sharding-sphere":{"config-resource":"classpath:/sharding/goods.yaml"}}
 ```
 
+> 多个 `polydata.jdbc.configs.*` 时，`name` 必须唯一，并且建议在其中一个配置 JSON 中设置 `"primary":true`，否则父上下文按类型注入 `DataSource` 时没有默认赢家。
+
 ## 配置参考（关键属性）
 
 | 属性 | 默认值 | 说明 |
@@ -130,6 +132,7 @@ polydata.jdbc.configs.goods={"name":"goods","datasource":[{"name":"ds","url":"jd
 | `polydata.jdbc.modules.datasource.default-user-name/password` | - | 数据源默认账号密码 |
 | `polydata.jdbc.modules.datasource.url.default-scheme` | `mysql://` | URL 省略 scheme 时的默认值 |
 | `polydata.jdbc.modules.datasource.url.default-query-params.*` | `characterEncoding` 等 | URL 缺失时的默认参数 |
+| `polydata.jdbc.modules.datasource.dynamic-context.close-delay` | `60s` | 热替换后旧子上下文的延迟关闭时间（需覆盖在途请求时长） |
 | `polydata.jdbc.multiple-context.bean-classes.expose` | `DataSource` 等 | 子上下文升迁到父上下文的 Bean 类型 |
 | `polydata.jdbc.multiple-context.bean-classes.primary` | `DataSource` 等 | 升迁时标记 `@Primary` 的 Bean 类型 |
 
@@ -153,7 +156,7 @@ mvn -f ../polyconfig/pom.xml clean install
 mvn clean test
 ```
 
-80 个测试（全部 H2 / 纯内存，不依赖外部数据库）：配置解析与校验、URL 归一化、属性展平、四个 SPI 与管道、子上下文隔离与 Bean 升迁、DynamicDataSource 热替换、区域切换重建、配置中心热更新、MyBatis / MyBatis-Plus 同进程并存（各自子上下文隔离）、ShardingSphere 路由（`t_order` → `t_order_0/1`）与集成。
+93 个测试（全部 H2 / 纯内存，不依赖外部数据库）：配置解析与校验（含 HA 全 zone 校验）、URL 归一化、属性展平、四个 SPI 与管道、子上下文隔离与 Bean 升迁、配置名唯一/primary 校验、DynamicDataSource 热替换与失败清理、区域切换重建、配置中心热更新、MyBatis / MyBatis-Plus 同进程并存（各自子上下文隔离）、ShardingSphere 路由（`t_order` → `t_order_0/1`）与集成。
 
 ## 版本基线与设计要点
 
@@ -161,6 +164,7 @@ mvn clean test
   MyBatis 3.0.5、MyBatis-Plus 3.5.7
 - 自研 `support` 工具包（Format/Bean/PropertySources/Environment/Factories 等），零第三方框架内部依赖
 - ShardingSphere 集成直接走 YAML 工厂（不依赖官方 starter），移除 Mode/Rule swapper 注册与属性合成等旧机制
+- ShardingSphere 默认连接池属性按 Hikari 命名（`maximumPoolSize` / `minimumIdle`），不再使用无效的 `maxPoolSize` / `minPoolSize`
 - 事件接入：PolyConfig 统一配置事件 + PolyZone 区域事件
 - default.properties 由 `EnvironmentPostProcessor` 直接加载
 - 测试全部 H2（无外部数据库依赖）

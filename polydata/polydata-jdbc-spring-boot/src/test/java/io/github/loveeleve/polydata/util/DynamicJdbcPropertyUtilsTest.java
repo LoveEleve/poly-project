@@ -38,6 +38,7 @@ import static io.github.loveeleve.polydata.constants.DynamicJdbcConstants.HIGH_A
 import static io.github.loveeleve.polydata.constants.DynamicJdbcConstants.MYBATIS_MODULE;
 import static io.github.loveeleve.polydata.constants.DynamicJdbcConstants.MYBATIS_PLUS_MODULE;
 import static io.github.loveeleve.polydata.constants.DynamicJdbcConstants.SHARDING_SPHERE_MODULE;
+import static io.github.loveeleve.polydata.shardingsphere.constants.ShardingSphereConstants.SHARDING_SPHERE_MODULE_DATASOURCE_DEFAULT_PROPERTIES_SUFFIX;
 import static io.github.loveeleve.polydata.constants.DynamicJdbcConstants.TRANSACTION_MODULE;
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.appendPropertyValue;
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getAllModulesAutoConfigurationBasePackages;
@@ -48,6 +49,7 @@ import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getData
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getDataSourceDefaultUserName;
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getDataSourceUrlDefaultQueryParams;
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getModuleAutoConfigurationBannedModules;
+import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getModuleDefaultProperties;
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getModuleAutoConfigurationBasePackages;
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getModuleExclusionAutoConfigurationClassNames;
 import static io.github.loveeleve.polydata.util.DynamicJdbcPropertyUtils.getModulePropertyNameAliases;
@@ -56,6 +58,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -263,4 +266,15 @@ class DynamicJdbcPropertyUtilsTest {
         environment.setProperty("test-app.clusterId.password", "1234560");
         assertEquals("1234560", getClusterDataSourcePassword(environment, "clusterId"));
     }
+    @Test
+    void testShardingSphereHikariPoolDefaultPropertyNames() {
+        Map<String, Object> defaults = getModuleDefaultProperties(environment, SHARDING_SPHERE_MODULE,
+                SHARDING_SPHERE_MODULE_DATASOURCE_DEFAULT_PROPERTIES_SUFFIX);
+
+        assertTrue(defaults.containsKey("maximumPoolSize"), defaults.toString());
+        assertTrue(defaults.containsKey("minimumIdle"), defaults.toString());
+        assertFalse(defaults.containsKey("maxPoolSize"), defaults.toString());
+        assertFalse(defaults.containsKey("minPoolSize"), defaults.toString());
+    }
+
 }

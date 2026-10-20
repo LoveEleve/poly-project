@@ -81,7 +81,9 @@ class DynamicJdbcChildContextRefreshedListener implements ApplicationListener<Co
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
         ConfigurableApplicationContext childContext = (ConfigurableApplicationContext) event.getApplicationContext();
-        registerParentContextClosedEventListener(childContext);
+        if (registerParentBeans) {
+            registerParentContextClosedEventListener(childContext);
+        }
         registerParentBeansFromChildContext(childContext);
     }
 

@@ -55,14 +55,24 @@ public class DataSourcePropertiesConfigPostProcessor extends AbstractConfigPostP
 
     @Override
     public void postProcess(DynamicJdbcConfig dynamicJdbcConfig, String shardingJdbcConfigPropertyName) {
+        if (dynamicJdbcConfig.hasHighAvailabilityDataSource()) {
+            dynamicJdbcConfig.getHighAvailabilityDataSourcePropertiesMap().values()
+                    .forEach(dataSourcePropertiesList -> processDataSourcePropertiesList(
+                            dataSourcePropertiesList, dynamicJdbcConfig, shardingJdbcConfigPropertyName));
+            return;
+        }
+        processDataSourcePropertiesList(dynamicJdbcConfig.getDataSourcePropertiesList(), dynamicJdbcConfig,
+                shardingJdbcConfigPropertyName);
+    }
 
-        List<Map<String, String>> dataSourcePropertiesList = dynamicJdbcConfig.getDataSourcePropertiesList();
-
+    private void processDataSourcePropertiesList(List<Map<String, String>> dataSourcePropertiesList,
+                                                DynamicJdbcConfig dynamicJdbcConfig,
+                                                String shardingJdbcConfigPropertyName) {
         int size = dataSourcePropertiesList == null ? 0 : dataSourcePropertiesList.size();
 
         if (size < 1) {
-            logger.warn("There is not any DataSource config in DynamicJdbcConfig[beanName : {}] : {}", shardingJdbcConfigPropertyName,
-                    dynamicJdbcConfig);
+            logger.warn("There is not any DataSource config in DynamicJdbcConfig[beanName : {}] : {}",
+                    shardingJdbcConfigPropertyName, dynamicJdbcConfig);
             return;
         }
 
@@ -70,7 +80,8 @@ public class DataSourcePropertiesConfigPostProcessor extends AbstractConfigPostP
             Map<String, String> dataSourceProperties = dataSourcePropertiesList.get(i);
             // previousDataSourceProperties will be used to copy its properties to target DataSource
             Map<String, String> previousDataSourceProperties = getPreviousDataSourceProperties(dataSourcePropertiesList, i);
-            processDataSourceProperties(dataSourceProperties, previousDataSourceProperties, dynamicJdbcConfig, shardingJdbcConfigPropertyName, i);
+            processDataSourceProperties(dataSourceProperties, previousDataSourceProperties, dynamicJdbcConfig,
+                    shardingJdbcConfigPropertyName, i);
         }
     }
 

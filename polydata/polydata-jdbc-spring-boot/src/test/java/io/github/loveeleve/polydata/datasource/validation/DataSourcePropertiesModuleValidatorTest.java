@@ -111,4 +111,69 @@ class DataSourcePropertiesModuleValidatorTest {
 
         assertTrue(errors.isValid(), errors.toString());
     }
+    @Test
+    void testInvalidNonActiveHighAvailabilityZone() {
+        DynamicJdbcConfig config = parseDynamicJdbcConfig("test", "{\"name\":\"test\",\"ha-datasource\":{"
+                + "\"defaultZone\":[{\"name\":\"ds\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test\",\"username\":\"sa\",\"password\":\"sa\"}],"
+                + "\"test-zone\":[{\"name\":\"ds-other\"}]}}");
+
+        validator.validate(config, "polydata.jdbc.configs.test", errors);
+
+        assertFalse(errors.isValid());
+    }
+
+    @Test
+    void testEmptyDefaultZone() {
+        DynamicJdbcConfig config = parseDynamicJdbcConfig("test", "{\"name\":\"test\",\"ha-datasource\":{"
+                + "\"defaultZone\":[],\"test-zone\":[{\"name\":\"ds-other\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test-other\",\"username\":\"sa\",\"password\":\"sa\"}]}}");
+
+        validator.validate(config, "polydata.jdbc.configs.test", errors);
+
+        assertFalse(errors.isValid());
+    }
+
+    @Test
+    void testMultipleDataSourcesInHighAvailabilityZoneWithoutSharding() {
+        DynamicJdbcConfig config = parseDynamicJdbcConfig("test", "{\"name\":\"test\",\"ha-datasource\":{"
+                + "\"defaultZone\":[{\"name\":\"ds\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test\",\"username\":\"sa\",\"password\":\"sa\"}],"
+                + "\"test-zone\":[{\"name\":\"ds-0\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test0\",\"username\":\"sa\",\"password\":\"sa\"},"
+                + "{\"name\":\"ds-1\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test1\",\"username\":\"sa\",\"password\":\"sa\"}]}}");
+
+        validator.validate(config, "polydata.jdbc.configs.test", errors);
+
+        assertFalse(errors.isValid());
+    }
+
+    @Test
+    void testMultipleDataSourcesWithoutSharding() {
+        DynamicJdbcConfig config = parseDynamicJdbcConfig("test", "{\"name\":\"test\",\"datasource\":["
+                + "{\"name\":\"ds-0\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test0\",\"username\":\"sa\",\"password\":\"sa\"},"
+                + "{\"name\":\"ds-1\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test1\",\"username\":\"sa\",\"password\":\"sa\"}]}");
+
+        validator.validate(config, "polydata.jdbc.configs.test", errors);
+
+        assertFalse(errors.isValid());
+    }
+
+    @Test
+    void testMultipleDataSourcesWithSharding() {
+        DynamicJdbcConfig config = parseDynamicJdbcConfig("test", "{\"name\":\"test\",\"datasource\":["
+                + "{\"name\":\"ds-0\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test0\",\"username\":\"sa\",\"password\":\"sa\"},"
+                + "{\"name\":\"ds-1\",\"type\":\"com.zaxxer.hikari.HikariDataSource\","
+                + "\"driverClassName\":\"org.h2.Driver\",\"url\":\"jdbc:h2:mem:test1\",\"username\":\"sa\",\"password\":\"sa\"}],"
+                + "\"sharding-sphere\":{\"config-resource\":\"classpath:/META-INF/sharding-sphere/config/sharding-tables.yaml\"}}");
+
+        validator.validate(config, "polydata.jdbc.configs.test", errors);
+
+        assertTrue(errors.isValid(), errors.toString());
+    }
+
 }
