@@ -31,7 +31,6 @@ import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_PREFERENCE_UPST
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_ENABLED;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_ENABLED;
-import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_FILTER_ORDER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -71,7 +70,6 @@ class ZoneContextTest {
         assertEquals(DEFAULT_ZONE_ENABLED, zoneContext.isEnabled());
         assertEquals(DEFAULT_ZONE, zoneContext.getZone());
         assertEquals(DEFAULT_ZONE_PREFERENCE_ENABLED, zoneContext.isPreferenceEnabled());
-        assertEquals(DEFAULT_ZONE_PREFERENCE_FILTER_ORDER, zoneContext.getPreferenceFilterOrder());
         assertEquals(DEFAULT_PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE,
                 zoneContext.getPreferenceUpstreamZoneReadyPercentage());
         assertEquals(DEFAULT_PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE,
@@ -127,12 +125,6 @@ class ZoneContextTest {
 
         zoneContext.setPreferenceEnabled(false);
         assertFalse(zoneContext.isPreferenceEnabled());
-    }
-
-    @Test
-    void testSetPreferenceFilterOrder() {
-        zoneContext.setPreferenceFilterOrder(5);
-        assertEquals(5, zoneContext.getPreferenceFilterOrder());
     }
 
     @Test
@@ -222,7 +214,6 @@ class ZoneContextTest {
         zoneContext.setEnabled(false);
         zoneContext.setZone("custom-zone");
         zoneContext.setPreferenceEnabled(true);
-        zoneContext.setPreferenceFilterOrder(99);
         zoneContext.setPreferenceUpstreamZoneReadyPercentage(50);
         zoneContext.setPreferenceUpstreamSameZoneMinAvailable(10);
         zoneContext.setPreferenceUpstreamDisabledZone("zone-c");
@@ -232,7 +223,6 @@ class ZoneContextTest {
         assertEquals(DEFAULT_ZONE_ENABLED, zoneContext.isEnabled());
         assertEquals(DEFAULT_ZONE, zoneContext.getZone());
         assertEquals(DEFAULT_ZONE_PREFERENCE_ENABLED, zoneContext.isPreferenceEnabled());
-        assertEquals(DEFAULT_ZONE_PREFERENCE_FILTER_ORDER, zoneContext.getPreferenceFilterOrder());
         assertEquals(DEFAULT_PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE,
                 zoneContext.getPreferenceUpstreamZoneReadyPercentage());
         assertEquals(DEFAULT_PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE,
@@ -297,12 +287,11 @@ class ZoneContextTest {
 
         zoneContext.setEnabled(false);
         zoneContext.setPreferenceEnabled(true);
-        zoneContext.setPreferenceFilterOrder(42);
         zoneContext.setPreferenceUpstreamZoneReadyPercentage(80);
         zoneContext.setPreferenceUpstreamSameZoneMinAvailable(3);
         zoneContext.setPreferenceUpstreamDisabledZone("zone-d");
 
-        assertEquals(6, events.size());
+        assertEquals(5, events.size());
         zoneContext.removePropertyChangeListener(listener);
     }
 }

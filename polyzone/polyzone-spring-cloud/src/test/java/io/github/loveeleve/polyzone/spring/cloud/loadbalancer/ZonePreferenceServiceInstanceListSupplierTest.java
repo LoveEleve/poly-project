@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.client.DefaultServiceInstance;
 import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.loadbalancer.Request;
 import org.springframework.cloud.loadbalancer.core.ServiceInstanceListSupplier;
 import reactor.core.publisher.Flux;
 
@@ -86,6 +87,19 @@ class ZonePreferenceServiceInstanceListSupplierTest {
         instances.forEach(instance -> assertEquals("zone-a", instance.getMetadata().get(ZONE_PROPERTY_NAME)));
     }
 
+    @Test
+    void testRequestIsPassedToDelegate() {
+        ZonePreferenceFilter<ServiceInstance> filter =
+                new ZonePreferenceFilter<>(zoneContext, new CloudServerZoneResolver());
+        ZonePreferenceServiceInstanceListSupplier requestAwareSupplier =
+                new ZonePreferenceServiceInstanceListSupplier(new RequestAwareServiceInstanceListSupplier(), filter);
+
+        List<ServiceInstance> instances = requestAwareSupplier.get(new Request<Object>() {
+        }).blockFirst();
+
+        assertEquals("request", instances.get(0).getInstanceId());
+    }
+
     static class FixedServiceInstanceListSupplier implements ServiceInstanceListSupplier {
 
         @Override
@@ -106,6 +120,29 @@ class ZonePreferenceServiceInstanceListSupplierTest {
         private static ServiceInstance newInstance(String zone, int index) {
             return new DefaultServiceInstance("instance-" + index, "test-service", "host-" + index, 8080, false,
                     Map.of(ZONE_PROPERTY_NAME, zone));
+        }
+    }
+
+    static class RequestAwareServiceInstanceListSupplier implements ServiceInstanceListSupplier {
+
+        @Override
+        public String getServiceId() {
+            return "test-service";
+        }
+
+        @Override
+        public Flux<List<ServiceInstance>> get() {
+            return Flux.just(List.of(newInstance("plain")));
+        }
+
+        @Override
+        public Flux<List<ServiceInstance>> get(Request request) {
+            return Flux.just(List.of(newInstance("request")));
+        }
+
+        private static ServiceInstance newInstance(String instanceId) {
+            return new DefaultServiceInstance(instanceId, "test-service", "host", 8080, false,
+                    Map.of(ZONE_PROPERTY_NAME, "zone-a"));
         }
     }
 }

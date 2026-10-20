@@ -159,10 +159,6 @@ public class ZonePreferenceFilter<E> {
         return targetEntities;
     }
 
-    public int getOrder() {
-        return zoneContext.getPreferenceFilterOrder();
-    }
-
     private List<E> filterDisabledZone(List<E> entities, String disabledZone, int totalSize) {
         List<E> targetEntities = new LinkedList<>();
 

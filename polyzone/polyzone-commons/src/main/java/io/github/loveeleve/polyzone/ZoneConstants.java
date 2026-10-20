@@ -99,28 +99,6 @@ public interface ZoneConstants {
      */
     String PREFERENCE_ENABLED_PROPERTY_NAME = PREFERENCE_PROPERTY_NAME_PREFIX + "enabled";
 
-    // Zone Preference Filter Properties
-
-    /**
-     * The property name prefix of zone preference filter : "polyzone.zone.preference.filter."
-     */
-    String PREFERENCE_FILTER_PROPERTY_NAME_PREFIX = PREFERENCE_PROPERTY_NAME_PREFIX + "filter.";
-
-    /**
-     * The property value of default zone preference filter order : "10"
-     */
-    String DEFAULT_ZONE_PREFERENCE_FILTER_ORDER_PROPERTY_VALUE = "10";
-
-    /**
-     * The default value of zone preference filter order.
-     */
-    int DEFAULT_ZONE_PREFERENCE_FILTER_ORDER = Integer.parseInt(DEFAULT_ZONE_PREFERENCE_FILTER_ORDER_PROPERTY_VALUE);
-
-    /**
-     * The property name of zone preference filter order : "polyzone.zone.preference.filter.order"
-     */
-    String PREFERENCE_FILTER_ORDER_PROPERTY_NAME = PREFERENCE_FILTER_PROPERTY_NAME_PREFIX + "order";
-
     // Zone Preference Upstream Properties
 
     /**

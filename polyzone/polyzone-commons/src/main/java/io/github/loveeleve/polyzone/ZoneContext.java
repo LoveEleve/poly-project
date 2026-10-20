@@ -36,7 +36,6 @@ import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_PREFERENCE_UPST
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_ENABLED;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_ENABLED;
-import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_FILTER_ORDER;
 
 /**
  * The context of zone, it holds the current zone and all zone-preference settings.
@@ -60,8 +59,6 @@ public class ZoneContext {
     private volatile String zone = DEFAULT_ZONE;
 
     private volatile boolean preferenceEnabled = DEFAULT_ZONE_PREFERENCE_ENABLED;
-
-    private volatile int preferenceFilterOrder = DEFAULT_ZONE_PREFERENCE_FILTER_ORDER;
 
     private volatile int preferenceUpstreamZoneReadyPercentage = DEFAULT_PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE;
 
@@ -90,11 +87,6 @@ public class ZoneContext {
     public void setPreferenceEnabled(boolean preferenceEnabled) {
         updateProperty("preferenceEnabled", this.preferenceEnabled, preferenceEnabled,
                 value -> this.preferenceEnabled = value);
-    }
-
-    public void setPreferenceFilterOrder(int preferenceFilterOrder) {
-        updateProperty("preferenceFilterOrder", this.preferenceFilterOrder, preferenceFilterOrder,
-                value -> this.preferenceFilterOrder = value);
     }
 
     public void setPreferenceUpstreamZoneReadyPercentage(int preferenceUpstreamZoneReadyPercentage) {
@@ -159,13 +151,6 @@ public class ZoneContext {
     }
 
     /**
-     * @return the order of zone preference filter
-     */
-    public int getPreferenceFilterOrder() {
-        return preferenceFilterOrder;
-    }
-
-    /**
      * @return the zone ready percentage of upstream servers(nodes) for zone-preference
      */
     public int getPreferenceUpstreamZoneReadyPercentage() {
@@ -206,7 +191,6 @@ public class ZoneContext {
         setEnabled(DEFAULT_ZONE_ENABLED);
         setZone(DEFAULT_ZONE);
         setPreferenceEnabled(DEFAULT_ZONE_PREFERENCE_ENABLED);
-        setPreferenceFilterOrder(DEFAULT_ZONE_PREFERENCE_FILTER_ORDER);
         setPreferenceUpstreamZoneReadyPercentage(DEFAULT_PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE);
         setPreferenceUpstreamSameZoneMinAvailable(DEFAULT_PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE);
         setPreferenceUpstreamDisabledZone(DEFAULT_PREFERENCE_UPSTREAM_DISABLED_ZONE);
@@ -233,7 +217,6 @@ public class ZoneContext {
                 + "enabled=" + enabled
                 + ", zone='" + zone + '\''
                 + ", preferenceEnabled=" + preferenceEnabled
-                + ", preferenceFilterOrder=" + preferenceFilterOrder
                 + ", preferenceUpstreamZoneReadyPercentage=" + preferenceUpstreamZoneReadyPercentage
                 + ", preferenceUpstreamSameZoneMinAvailable=" + preferenceUpstreamSameZoneMinAvailable
                 + ", preferenceUpstreamDisabledZone=" + preferenceUpstreamDisabledZone + '}';

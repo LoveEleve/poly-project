@@ -18,6 +18,7 @@ package io.github.loveeleve.polyzone.spring.cloud.loadbalancer;
 
 import io.github.loveeleve.polyzone.ZonePreferenceFilter;
 import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.loadbalancer.Request;
 import org.springframework.cloud.loadbalancer.core.DelegatingServiceInstanceListSupplier;
 import org.springframework.cloud.loadbalancer.core.ServiceInstanceListSupplier;
 import reactor.core.publisher.Flux;
@@ -51,6 +52,11 @@ public class ZonePreferenceServiceInstanceListSupplier extends DelegatingService
     @Override
     public Flux<List<ServiceInstance>> get() {
         return getDelegate().get().map(this::filteredByZone);
+    }
+
+    @Override
+    public Flux<List<ServiceInstance>> get(Request request) {
+        return getDelegate().get(request).map(this::filteredByZone);
     }
 
     private List<ServiceInstance> filteredByZone(List<ServiceInstance> serviceInstances) {

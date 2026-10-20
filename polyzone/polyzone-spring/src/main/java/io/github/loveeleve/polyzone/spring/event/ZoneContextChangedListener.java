@@ -46,10 +46,8 @@ import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_PREFERENCE_UPST
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_ENABLED;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_ENABLED;
-import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_FILTER_ORDER;
 import static io.github.loveeleve.polyzone.ZoneConstants.ORIGINAL_ZONE;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_ENABLED_PROPERTY_NAME;
-import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_FILTER_ORDER_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_DISABLED_ZONE_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE_PROPERTY_NAME;
@@ -118,7 +116,6 @@ public class ZoneContextChangedListener implements SmartApplicationListener, App
             ZONE_PROPERTY_NAME,
             ZONE_ENABLED_PROPERTY_NAME,
             PREFERENCE_ENABLED_PROPERTY_NAME,
-            PREFERENCE_FILTER_ORDER_PROPERTY_NAME,
             PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE_PROPERTY_NAME,
             PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE_PROPERTY_NAME,
             PREFERENCE_UPSTREAM_DISABLED_ZONE_PROPERTY_NAME
@@ -166,7 +163,6 @@ public class ZoneContextChangedListener implements SmartApplicationListener, App
         propertyChangedHandlers.put(ZONE_PROPERTY_NAME, this::changeZone);
         propertyChangedHandlers.put(ZONE_ENABLED_PROPERTY_NAME, this::changeEnabled);
         propertyChangedHandlers.put(PREFERENCE_ENABLED_PROPERTY_NAME, this::changeZonePreferenceEnabled);
-        propertyChangedHandlers.put(PREFERENCE_FILTER_ORDER_PROPERTY_NAME, this::changePreferenceFilterOrder);
         propertyChangedHandlers.put(PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE_PROPERTY_NAME,
                 this::changePreferenceUpstreamZoneReadyPercentage);
         propertyChangedHandlers.put(PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE_PROPERTY_NAME,
@@ -259,11 +255,6 @@ public class ZoneContextChangedListener implements SmartApplicationListener, App
     private void changeZonePreferenceEnabled(String propertyName) {
         boolean preferenceEnabled = getProperty(propertyName, boolean.class, DEFAULT_ZONE_PREFERENCE_ENABLED);
         zoneContext.setPreferenceEnabled(preferenceEnabled);
-    }
-
-    private void changePreferenceFilterOrder(String propertyName) {
-        int preferenceFilterOrder = getProperty(propertyName, int.class, DEFAULT_ZONE_PREFERENCE_FILTER_ORDER);
-        zoneContext.setPreferenceFilterOrder(preferenceFilterOrder);
     }
 
     private void changePreferenceUpstreamZoneReadyPercentage(String propertyName) {

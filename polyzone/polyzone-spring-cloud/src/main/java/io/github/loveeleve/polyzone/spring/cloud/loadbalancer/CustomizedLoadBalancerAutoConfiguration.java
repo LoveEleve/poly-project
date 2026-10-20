@@ -16,6 +16,7 @@
  */
 package io.github.loveeleve.polyzone.spring.cloud.loadbalancer;
 
+import io.github.loveeleve.polyzone.spring.boot.condition.ConditionalOnZoneAvailable;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,6 +34,7 @@ import org.springframework.context.annotation.Configuration;
  * @since 1.0.0
  */
 @AutoConfiguration
+@ConditionalOnZoneAvailable
 @ConditionalOnProperty(value = "polyzone.spring.cloud.loadbalancer.customized", havingValue = "true")
 @ConditionalOnClass(name = {
         "org.springframework.cloud.loadbalancer.annotation.LoadBalancerClient"

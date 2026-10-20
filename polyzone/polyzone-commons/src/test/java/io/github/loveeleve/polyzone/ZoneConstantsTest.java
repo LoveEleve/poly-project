@@ -33,16 +33,12 @@ import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_ENABLED;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_ENABLED_PROPERTY_VALUE;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_ENABLED;
-import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_FILTER_ORDER;
-import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE_PREFERENCE_FILTER_ORDER_PROPERTY_VALUE;
 import static io.github.loveeleve.polyzone.ZoneConstants.ENABLED_PROPERTY_NAME_SUFFIX;
 import static io.github.loveeleve.polyzone.ZoneConstants.LOCATOR_FAST_FAIL_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.LOCATOR_PROPERTY_NAME_PREFIX;
 import static io.github.loveeleve.polyzone.ZoneConstants.LOCATOR_TIMEOUT_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.ORIGINAL_ZONE;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_ENABLED_PROPERTY_NAME;
-import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_FILTER_ORDER_PROPERTY_NAME;
-import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_FILTER_PROPERTY_NAME_PREFIX;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_PROPERTY_NAME_PREFIX;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_DISABLED_ZONE_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_PROPERTY_NAME_PREFIX;
@@ -81,12 +77,6 @@ class ZoneConstantsTest {
         assertEquals("false", DEFAULT_PREFERENCE_ENABLED_PROPERTY_VALUE);
         assertFalse(DEFAULT_ZONE_PREFERENCE_ENABLED);
         assertEquals("polyzone.zone.preference.enabled", PREFERENCE_ENABLED_PROPERTY_NAME);
-
-        // Zone Preference Filter Properties
-        assertEquals("polyzone.zone.preference.filter.", PREFERENCE_FILTER_PROPERTY_NAME_PREFIX);
-        assertEquals("10", DEFAULT_ZONE_PREFERENCE_FILTER_ORDER_PROPERTY_VALUE);
-        assertEquals(10, DEFAULT_ZONE_PREFERENCE_FILTER_ORDER);
-        assertEquals("polyzone.zone.preference.filter.order", PREFERENCE_FILTER_ORDER_PROPERTY_NAME);
 
         // Zone Preference Upstream Properties
         assertEquals("polyzone.zone.preference.upstream.", PREFERENCE_UPSTREAM_PROPERTY_NAME_PREFIX);

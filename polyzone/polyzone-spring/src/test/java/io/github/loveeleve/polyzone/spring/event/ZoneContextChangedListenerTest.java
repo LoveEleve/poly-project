@@ -36,7 +36,6 @@ import java.util.Map;
 import static io.github.loveeleve.polyzone.ZoneConstants.DEFAULT_ZONE;
 import static io.github.loveeleve.polyzone.ZoneConstants.ORIGINAL_ZONE;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_ENABLED_PROPERTY_NAME;
-import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_FILTER_ORDER_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_DISABLED_ZONE_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE_PROPERTY_NAME;
 import static io.github.loveeleve.polyzone.ZoneConstants.PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE_PROPERTY_NAME;
@@ -137,16 +136,6 @@ class ZoneContextChangedListenerTest {
     }
 
     @Test
-    void testContextRefreshChangesPreferenceFilterOrder() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(PREFERENCE_FILTER_ORDER_PROPERTY_NAME, "42");
-
-        try (GenericApplicationContext ctx = buildContext(props)) {
-            assertEquals(42, zoneContext.getPreferenceFilterOrder());
-        }
-    }
-
-    @Test
     void testContextRefreshChangesUpstreamZoneReadyPercentage() {
         Map<String, Object> props = new HashMap<>();
         props.put(PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE_PROPERTY_NAME, "80");
@@ -228,21 +217,20 @@ class ZoneContextChangedListenerTest {
         assertTrue(ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES.contains(ZONE_PROPERTY_NAME));
         assertTrue(ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES.contains(ZONE_ENABLED_PROPERTY_NAME));
         assertTrue(ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES.contains(PREFERENCE_ENABLED_PROPERTY_NAME));
-        assertTrue(ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES.contains(PREFERENCE_FILTER_ORDER_PROPERTY_NAME));
         assertTrue(ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES
                 .contains(PREFERENCE_UPSTREAM_ZONE_READY_PERCENTAGE_PROPERTY_NAME));
         assertTrue(ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES
                 .contains(PREFERENCE_UPSTREAM_SAME_ZONE_MIN_AVAILABLE_PROPERTY_NAME));
         assertTrue(ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES
                 .contains(PREFERENCE_UPSTREAM_DISABLED_ZONE_PROPERTY_NAME));
-        assertEquals(7, ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES.size());
+        assertEquals(6, ZoneContextChangedListener.ZONE_CONTEXT_PROPERTY_NAMES.size());
     }
 
     @Test
     void testPropertyChangedHandlersInitialized() {
         ZoneContextChangedListener listener = new ZoneContextChangedListener();
         assertFalse(listener.propertyChangedHandlers.isEmpty());
-        assertEquals(7, listener.propertyChangedHandlers.size());
+        assertEquals(6, listener.propertyChangedHandlers.size());
     }
 
     @Test

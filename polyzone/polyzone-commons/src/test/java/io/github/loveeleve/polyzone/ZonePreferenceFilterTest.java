@@ -236,11 +236,6 @@ class ZonePreferenceFilterTest {
         assertSame(entities, result);
     }
 
-    @Test
-    void testGetOrder() {
-        assertEquals(zoneContext.getPreferenceFilterOrder(), filter.getOrder());
-    }
-
     // ---- null entity in list ----
 
     @Test

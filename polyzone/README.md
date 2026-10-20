@@ -21,7 +21,7 @@ PolyZone 解决一个具体问题：**多区域部署的服务，如何让调用
 
 | 能力 | 说明 |
 |------|------|
-| 统一区域定位抽象 | `ZoneLocator` SPI + 组合定位器，内置 AWS EC2 / ECS 元数据、Spring 属性四类实现，屏蔽部署环境差异 |
+| 统一区域定位抽象 | `ZoneLocator` SPI + 组合定位器；Spring 属性兜底内置，AWS EC2 / ECS 元数据定位器在 `polyzone-aws` 模块（按需引入），屏蔽部署环境差异 |
 | 同区域优先路由 | `ZonePreferenceFilter` 十步决策：同区域优先 + 就绪率阈值 + 最小可用数阈值 + 禁用区域，防止单区域过载 |
 | 数据存储同区域 | `ZoneContextChangedEvent` 事件广播，数据源 / Redis 等组件可订阅事件联动切换 |
 | 区域信息传播 | 注册时把当前区域写入注册中心 metadata（`InstancePreRegisteredEvent`），下游按 metadata 解析区域 |
@@ -61,6 +61,8 @@ polyzone-commons <- polyzone-spring <- polyzone-spring-boot <- polyzone-spring-c
 </dependency>
 ```
 
+> AWS 元数据定位器在 `polyzone-aws` 模块，需要 EC2 / ECS 自动定位时额外引入；不引入时只有 `DefaultZoneLocator`（Spring 属性 / `defaultZone` 兜底）。
+
 ### 2. 配置
 
 ```yaml
@@ -98,7 +100,6 @@ spring:
 | `polyzone.zone` | `defaultZone` | 当前区域；缺省或 `originalZone` 时触发自动定位 |
 | `polyzone.zone.enabled` | `true` | 区域能力总开关 |
 | `polyzone.zone.preference.enabled` | `false` | 同区域优先开关 |
-| `polyzone.zone.preference.filter.order` | `10` | 过滤器顺序 |
 | `polyzone.zone.preference.upstream.zone-ready-percentage` | `100` | 实例带区域信息的最低占比 |
 | `polyzone.zone.preference.upstream.same-zone-min-available` | `5` | 同区域最小可用实例数 |
 | `polyzone.zone.preference.upstream.disabled-zone` | - | 禁用区域列表（逗号分隔） |
@@ -156,7 +157,7 @@ filter(instances):
 
 | | Spring Cloud 内置 | PolyZone |
 |--|------------------|----------|
-| 区域发现 | 手动配置 `spring.cloud.loadbalancer.zone` | 4 类 ZoneLocator 自动发现（AWS EC2/ECS + 属性） |
+| 区域发现 | 手动配置 `spring.cloud.loadbalancer.zone` | 4 类 ZoneLocator（AWS EC2/ECS 定位器需引入 `polyzone-aws`） |
 | 安全阈值 | 无 | 就绪率 + 最小可用数双阈值 |
 | 禁用区域 | 无 | `disabled-zone` |
 | 动态切换 | 改配置需刷新上下文 | `EnvironmentChangeEvent` 秒级生效 |
@@ -170,13 +171,14 @@ filter(instances):
 mvn clean test
 ```
 
-当前测试覆盖：定位链、优先算法全分支、配置中心切换链路、故障转移与回滚、AWS 三类定位器、LoadBalancer 过滤与配置装配、工厂加载生命周期回调，共 132 个用例。
+当前测试覆盖：定位链、优先算法全分支、配置中心切换链路、故障转移与回滚、AWS 三类定位器、LoadBalancer 过滤与配置装配（含 request-aware 透传、zone 关闭）、工厂加载生命周期回调，共 132 个用例。
 
 ## 注意事项
 
-- **非 AWS 环境的定位开销**：`Ec2AvailabilityZoneEndpointZoneLocator.supports()` 恒为 true，在非 AWS
-  环境会先尝试访问 `169.254.169.254`，直到超时（默认 3s）才回退到属性定位。生产上非 AWS 环境建议显式
-  配置 `polyzone.zone`，或在 `originalZone` 首次同步时接受一次 3s 的启动开销。
+- **非 AWS 环境的定位开销**：仅在引入 `polyzone-aws` 时出现。`Ec2AvailabilityZoneEndpointZoneLocator.supports()`
+  恒为 true，在非 AWS 环境会先尝试访问 `169.254.169.254`，直到超时（默认 3s）才回退到属性定位。生产上非 AWS
+  环境建议显式配置 `polyzone.zone`（正常启动路径由 `ZoneContextChangedListener` 直接采用，不走定位链），
+  或接受一次 3s 的启动开销。
 - **区域信息附加依赖自动注册**：`ZoneAttachmentListener` 监听 Spring Cloud 的
   `InstancePreRegisteredEvent`，该事件由 `AbstractAutoServiceRegistration` 发布（Nacos/Eureka/Consul
   的自动注册均继承自它）；手工注册实例不会触发。
