@@ -24,6 +24,11 @@ import java.util.List;
  * The publisher of {@link ConfigPropertiesChangedEvent}, used by the PolyConfig backend adapters to
  * publish configuration changes in a unified way.
  *
+ * <p>
+ * With the standard Spring {@code ApplicationEventMulticaster}, publishing is synchronous: the
+ * listeners run on the calling thread (for a Nacos listener, the Nacos client notification thread).
+ * Configure an asynchronous multicaster or an asynchronous listener when the listener may block.
+ *
  * @author <a href="https://github.com/LoveEleve">LoveEleve</a>
  * @see ConfigPropertiesChangedEvent
  * @since 1.0.0

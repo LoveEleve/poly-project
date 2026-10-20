@@ -107,13 +107,13 @@ public class OrderConfigListener implements ApplicationListener<ConfigProperties
 
 | 属性 | 默认值 | 说明 |
 |------|--------|------|
-| `value` | - | Nacos dataId 列表（`.properties` / `.yml` / `.yaml`） |
+| `value` | - | Nacos dataId 列表（`.properties` / `.yml` / `.yaml` / `.xml`） |
 | `name` | 自动生成 | PropertySource 名称 |
 | `autoRefreshed` | `true` | 服务端配置变更时自动刷新并发布事件 |
 | `first` | `false` | 放到 Environment 首位 |
 | `before` / `after` | - | 相对其他 PropertySource 的位置 |
 | `ignoreResourceNotFound` | `false` | 配置不存在时是否忽略 |
-| `encoding` | `UTF-8` | 编码（YAML 固定 UTF-8） |
+| `encoding` | `UTF-8` | 编码（仅 `.properties` 生效；YAML 固定 UTF-8；XML 由声明决定） |
 | `serverAddress` | `127.0.0.1:8848` | Nacos 地址（支持多地址） |
 | `namespace` | 空 | Nacos 命名空间 |
 | `group` | `DEFAULT_GROUP` | Nacos 分组 |
@@ -162,7 +162,7 @@ Nacos/Apollo/Spring Cloud Config 标准刷新
 | 声明方式 | 注解 | 无（客户端行为） | 注解（后端注解 + @AliasFor） |
 | 热更新 | 不支持 | `@RefreshScope` / `EnvironmentChangeEvent` | 自动刷新 + 统一事件（含新旧值） |
 | 变更感知 | 无 | 仅属性名（EnvironmentChangeEvent） | 统一事件：属性名 + 新旧值 + 来源 |
-| 后端扩展 | - | 各客户端独立 | Loader 模板，新增后端只实现 2 个方法 |
+| 后端扩展 | - | 各客户端独立 | Loader 模板，新增后端实现 2 个抽象方法 + 可选刷新钩子 |
 
 PolyConfig 不替代各配置中心客户端，而是把它们的加载/刷新统一成一套注解模型和事件模型。
 
@@ -173,7 +173,7 @@ PolyConfig 不替代各配置中心客户端，而是把它们的加载/刷新�
 mvn clean test
 ```
 
-当前 24 个用例：统一事件模型、事件发布、刷新器（diff/替换/无变化不发事件/线程安全）、Loader 模板（加载/顺序/自动刷新/资源缺失/YAML/三方后端注解缺省属性）、真实 ApplicationContext 端到端、自动配置、EnvironmentChangeEvent 适配、Nacos 加载与自动刷新。
+当前 30 个用例：统一事件模型、事件发布、刷新器（diff/替换/无变化不发事件/线程安全）、Loader 模板（加载/顺序/自动刷新/资源缺失/YAML/XML/编码/多资源优先级/三方后端注解缺省属性）、真实 ApplicationContext 端到端、自动配置、EnvironmentChangeEvent 适配、声明式与环境适配双路事件、Nacos 加载与自动刷新、Nacos ConfigService 缓存 key。
 
 ## 注意事项
 
@@ -181,11 +181,15 @@ mvn clean test
   配置变更可能产生两个 `ConfigPropertiesChangedEvent`（source 分别为属性源名与 `"environment"`）。消费端应
   做幂等处理或按 `source` 过滤。
 - **环境适配的旧值为空**：`EnvironmentChangeEvent` 只携带变更的属性名，因此 `"environment"` 来源的事件中
-  `oldValue` 为 `null`，请以 `getNewProperties()` 为准。
-- **YAML 编码固定 UTF-8**：`.yml` / `.yaml` 由 SnakeYAML 按 UTF-8 解析，`encoding` 属性只对
-  `.properties` / `.xml` 生效。
-- **刷新是线程安全的**：`ResourcePropertySourcesRefresher` 的状态更新在锁内完成，事件在锁外发布，避免
-  Nacos 推送线程与业务线程竞争，也避免监听器在持锁状态下执行。
+  `oldValue` 为 `null`；属性被删除或无法解析时 `newValue` 也为 `null`。请以 `getNewProperties()` 为准，
+  需要可靠旧值就用声明式路径。
+- **编码作用域**：`encoding` 只对 `.properties` 生效；`.yml` / `.yaml` 由 SnakeYAML 按 UTF-8
+  解析；`.xml` 按 Java properties XML 解析，编码由 XML 声明决定。Nacos 的 `.xml` dataId 也走
+  XML 解析（不依赖文件名）。
+- **刷新是线程安全的，但事件是同步的**：`ResourcePropertySourcesRefresher` 的状态更新在锁内完成，
+  事件在锁外发布，避免 Nacos 推送线程与业务线程竞争锁，也避免监听器在持锁状态下执行。注意 Spring
+  事件默认同步，监听器仍在 Nacos 客户端通知线程上执行；慢监听器会阻塞该线程。需要异步时请自行配置
+  `ApplicationEventMulticaster` 的 `TaskExecutor` 或在监听器内异步。
 - **暂不支持资源通配符**：如 `classpath*:/config/*.properties` 的批量资源模式尚未实现（按需补充）。
 
 ## 设计要点
@@ -194,7 +198,7 @@ mvn clean test
 - 通用适配：`EnvironmentChangeEvent` → 统一事件（非注解加载路径同样有事件）
 - Nacos 后端基于官方 `nacos-client` SDK，自动刷新更可靠
 - Loader 对后端注解属性读取有缺省兜底（三方后端注解不必声明全部通用属性）
-- 刷新器线程安全：状态更新在锁内完成，事件在锁外发布
+- 刷新器线程安全：状态更新在锁内完成，事件在锁外发布（监听器仍同步执行，见注意事项）
 - Apollo / etcd / ZooKeeper 后端在 Roadmap
 
 ## Roadmap

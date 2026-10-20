@@ -65,6 +65,13 @@ import java.util.Map;
  *     {@link #configureRefresher(AnnotationAttributes, ResourcePropertySourcesRefresher)}</li>
  * </ol>
  *
+ * <p>
+ * A backend supplies its annotation type through {@link #getAnnotationType()} and its resource
+ * resolution through {@link #resolveResources(AnnotationAttributes, String, String)}; both are
+ * abstract. The refresh listener hook {@link #configureRefresher(AnnotationAttributes,
+ * ResourcePropertySourcesRefresher)} is optional for a non-refreshing backend but must be
+ * overridden when {@code autoRefreshed=true}.
+ *
  * @param <A> the backend annotation type meta-annotated with {@link PropertySourceExtension}
  * @author <a href="https://github.com/LoveEleve">LoveEleve</a>
  * @see PropertySourceExtension

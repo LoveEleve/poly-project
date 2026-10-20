@@ -16,6 +16,7 @@
  */
 package io.github.loveeleve.polyconfig.spring.context.annotation;
 
+import io.github.loveeleve.polyconfig.spring.env.ResourcePropertySources;
 import io.github.loveeleve.polyconfig.spring.env.ResourcePropertySourcesRefresher;
 import io.github.loveeleve.polyconfig.spring.event.ConfigPropertiesChangedEvent;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +28,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.core.annotation.AnnotationAttributes;
+import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -38,6 +40,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -128,6 +131,26 @@ class PropertySourceExtensionLoaderTest {
     void testYamlResource() {
         loader.selectImports(AnnotationMetadata.introspect(YamlConfig.class));
         assertEquals("polyconfig-yaml", context.getEnvironment().getProperty("app.name"));
+    }
+
+    @Test
+    void testXmlResource() {
+        loader.selectImports(AnnotationMetadata.introspect(XmlConfig.class));
+        assertEquals("polyconfig-xml", context.getEnvironment().getProperty("app.name"));
+    }
+
+    @Test
+    void testPropertiesEncoding() throws Exception {
+        byte[] content = "app.name=配置".getBytes(Charset.forName("GBK"));
+        List<PropertySource<?>> sources = ResourcePropertySources.load("app.properties",
+                new ByteArrayResource(content), "GBK");
+        assertEquals("配置", sources.get(0).getProperty("app.name"));
+    }
+
+    @Test
+    void testMultipleResourcesFirstDeclaredWins() {
+        loader.selectImports(AnnotationMetadata.introspect(MultipleResourcesConfig.class));
+        assertEquals("polyconfig", context.getEnvironment().getProperty("app.name"));
     }
 
     // ---- End-to-end tests through a real ApplicationContext ----
@@ -251,6 +274,14 @@ class PropertySourceExtensionLoaderTest {
 
     @TestPropertySource("app.yml")
     static class YamlConfig {
+    }
+
+    @TestPropertySource("app.xml")
+    static class XmlConfig {
+    }
+
+    @TestPropertySource({"app.properties", "app2.properties"})
+    static class MultipleResourcesConfig {
     }
 
     @TestPropertySource("app.properties")

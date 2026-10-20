@@ -30,6 +30,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -121,7 +122,11 @@ public class NacosPropertySourceLoader extends PropertySourceExtensionLoader<Nac
         String serverAddress = attributes.getString("serverAddress");
         String namespace = attributes.getString("namespace");
         String username = attributes.getString("username");
-        String cacheKey = serverAddress + "|" + namespace + "|" + username;
+        String password = attributes.getString("password");
+        // The password is part of the client identity. Keep only its hash in the cache key so that
+        // two configurations with the same address/namespace/username but different passwords do
+        // not share a ConfigService.
+        String cacheKey = serverAddress + "|" + namespace + "|" + username + "|" + Objects.hashCode(password);
         // Atomic cache : a concurrent creation would leak the replaced ConfigService
         try {
             return configServiceCache.computeIfAbsent(cacheKey, key -> {

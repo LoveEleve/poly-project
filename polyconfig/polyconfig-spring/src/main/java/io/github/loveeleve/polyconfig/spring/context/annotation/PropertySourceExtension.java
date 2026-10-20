@@ -94,7 +94,8 @@ public @interface PropertySourceExtension {
     boolean ignoreResourceNotFound() default false;
 
     /**
-     * The character encoding of the resources.
+     * The character encoding of the resources. It applies to {@code .properties} resources only:
+     * YAML is read as UTF-8 and XML uses the encoding declared in the XML document.
      */
     String encoding() default "UTF-8";
 }

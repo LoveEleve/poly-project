@@ -26,9 +26,13 @@ import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.type.AnnotationMetadata;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -117,12 +121,65 @@ class NacosPropertySourceLoaderTest {
         }
     }
 
+    @Test
+    void testXmlConfigContent() throws Exception {
+        ConfigService configService = mock(ConfigService.class);
+        when(configService.getConfig("app.xml", "DEFAULT_GROUP", 3000L)).thenReturn(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                        + "<!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\">\n"
+                        + "<properties><entry key=\"app.name\">nacos-xml</entry></properties>");
+
+        try (GenericApplicationContext context = new GenericApplicationContext()) {
+            context.refresh();
+            NacosPropertySourceLoader loader = new TestNacosPropertySourceLoader(configService);
+            loader.setEnvironment(context.getEnvironment());
+            loader.setResourceLoader(context);
+            loader.setBeanFactory(context.getBeanFactory());
+
+            loader.selectImports(AnnotationMetadata.introspect(NacosXmlTestConfig.class));
+
+            assertEquals("nacos-xml", context.getEnvironment().getProperty("app.name"));
+        }
+    }
+
+    @Test
+    void testConfigServiceCacheKeyIncludesPassword() throws Exception {
+        CachingTestNacosPropertySourceLoader loader = new CachingTestNacosPropertySourceLoader();
+        String serverAddress = "127.0.0.1:" + System.nanoTime();
+        AnnotationAttributes p1 = nacosAttributes(serverAddress, "user", "p1");
+        AnnotationAttributes p1Again = nacosAttributes(serverAddress, "user", "p1");
+        AnnotationAttributes p2 = nacosAttributes(serverAddress, "user", "p2");
+
+        ConfigService first = loader.getConfigService(p1);
+        ConfigService same = loader.getConfigService(p1Again);
+        ConfigService different = loader.getConfigService(p2);
+
+        assertSame(first, same);
+        assertNotSame(first, different);
+        assertEquals(2, loader.created);
+    }
+
+    private static AnnotationAttributes nacosAttributes(String serverAddress, String username, String password) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("serverAddress", serverAddress);
+        attributes.put("namespace", "");
+        attributes.put("username", username);
+        attributes.put("password", password);
+        attributes.put("group", "DEFAULT_GROUP");
+        attributes.put("timeout", 3000L);
+        return new AnnotationAttributes(attributes);
+    }
+
     @NacosPropertySource(value = "app.properties", serverAddress = "127.0.0.1:8848")
     static class NacosTestConfig {
     }
 
     @NacosPropertySource(value = "app.yml", group = "TEST_GROUP", timeout = 5000L)
     static class NacosYamlTestConfig {
+    }
+
+    @NacosPropertySource(value = "app.xml", serverAddress = "127.0.0.1:8848")
+    static class NacosXmlTestConfig {
     }
 
     static class TestNacosPropertySourceLoader extends NacosPropertySourceLoader {
@@ -136,6 +193,17 @@ class NacosPropertySourceLoaderTest {
         @Override
         protected ConfigService getConfigService(AnnotationAttributes attributes) {
             return configService;
+        }
+    }
+
+    static class CachingTestNacosPropertySourceLoader extends NacosPropertySourceLoader {
+
+        private int created;
+
+        @Override
+        protected ConfigService createConfigService(AnnotationAttributes attributes) {
+            created++;
+            return mock(ConfigService.class);
         }
     }
 }

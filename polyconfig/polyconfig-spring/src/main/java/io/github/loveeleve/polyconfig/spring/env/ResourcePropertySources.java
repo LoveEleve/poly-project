@@ -25,6 +25,7 @@ import org.springframework.core.io.support.EncodedResource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +35,11 @@ import java.util.Properties;
  * The utilities for loading and flattening resource based property sources.
  *
  * <p>
- * Two resource formats are supported:
+ * Three resource formats are supported:
  * <ul>
  *     <li>{@code .yml} / {@code .yaml} - loaded by {@link YamlPropertiesFactoryBean} (requires
  *     SnakeYAML on the classpath)</li>
+ *     <li>{@code .xml} - loaded as Java properties XML by {@link Properties#loadFromXML(InputStream)}</li>
  *     <li>everything else - loaded as {@link Properties} by {@link PropertiesLoaderUtils} with the
  *     given encoding</li>
  * </ul>
@@ -69,8 +71,19 @@ public abstract class ResourcePropertySources {
         if (fileName != null && (fileName.endsWith(".yml") || fileName.endsWith(".yaml"))) {
             return List.of(loadYaml(name, resource));
         }
+        if (fileName != null && fileName.endsWith(".xml")) {
+            return List.of(loadXml(name, resource));
+        }
         Properties properties = PropertiesLoaderUtils.loadProperties(new EncodedResource(resource, encoding));
         return List.of(new MapPropertySource(name, toMap(properties)));
+    }
+
+    private static PropertySource<?> loadXml(String name, Resource resource) throws IOException {
+        Properties properties = new Properties();
+        try (InputStream inputStream = resource.getInputStream()) {
+            properties.loadFromXML(inputStream);
+        }
+        return new MapPropertySource(name, toMap(properties));
     }
 
     private static PropertySource<?> loadYaml(String name, Resource resource) throws IOException {

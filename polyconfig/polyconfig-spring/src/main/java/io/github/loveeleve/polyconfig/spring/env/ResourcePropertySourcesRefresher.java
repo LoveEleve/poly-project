@@ -86,6 +86,9 @@ public class ResourcePropertySourcesRefresher {
      * <p>
      * The method is thread-safe: the state update is performed under the monitor of this refresher,
      * while the event is published outside the lock so that listeners never run while holding it.
+     * Note that with the standard Spring {@code ApplicationEventMulticaster} the event is
+     * published synchronously, so listeners run on the calling thread (for a Nacos listener, the
+     * Nacos client notification thread) after the lock has been released.
      *
      * @param resourceValue the resource value (e.g. the Nacos dataId)
      * @param resource      the new resource content

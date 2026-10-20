@@ -43,7 +43,9 @@ import java.util.List;
  *
  * <p>
  * Note: {@link EnvironmentChangeEvent} only carries the changed property names, so the old values
- * in the published changes are {@code null}.
+ * in the published changes are {@code null}. The new value is {@code null} as well when the
+ * property was removed (or cannot be resolved from the {@code Environment}); the adapter cannot
+ * distinguish a removal from an unknown value.
  *
  * @author <a href="https://github.com/LoveEleve">LoveEleve</a>
  * @see ConfigChangePublisher

@@ -65,8 +65,8 @@ public @interface NacosPropertySource {
     String name() default "";
 
     /**
-     * The Nacos dataIds to be loaded, e.g. {@code "application.properties"} or
-     * {@code "application.yaml"}.
+     * The Nacos dataIds to be loaded, e.g. {@code "application.properties"},
+     * {@code "application.yaml"} or {@code "application.xml"}.
      */
     @AliasFor(annotation = PropertySourceExtension.class)
     String[] value() default {};
@@ -105,7 +105,9 @@ public @interface NacosPropertySource {
     boolean ignoreResourceNotFound() default false;
 
     /**
-     * The character encoding of the Nacos configuration content.
+     * The character encoding of the Nacos configuration content. It applies to
+     * {@code .properties} dataIds only: YAML is read as UTF-8 and XML uses the encoding declared
+     * in the XML document.
      */
     @AliasFor(annotation = PropertySourceExtension.class)
     String encoding() default "UTF-8";

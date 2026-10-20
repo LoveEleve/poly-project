@@ -16,6 +16,9 @@
  */
 package io.github.loveeleve.polyconfig.spring.boot.autoconfigure;
 
+import io.github.loveeleve.polyconfig.spring.context.annotation.PropertySourceExtension;
+import io.github.loveeleve.polyconfig.spring.context.annotation.PropertySourceExtensionLoader;
+import io.github.loveeleve.polyconfig.spring.env.ResourcePropertySourcesRefresher;
 import io.github.loveeleve.polyconfig.spring.event.ConfigChangePublisher;
 import io.github.loveeleve.polyconfig.spring.event.ConfigPropertiesChangedEvent;
 import org.junit.jupiter.api.Test;
@@ -23,8 +26,21 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.AliasFor;
+import org.springframework.core.annotation.AnnotationAttributes;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,5 +90,75 @@ class PolyConfigAutoConfigurationTest {
             assertThat(events.get(0).getNewProperties()).containsEntry("polyconfig.test.key", "value-1");
             assertThat(events.get(0).isChanged("polyconfig.test.key")).isTrue();
         });
+    }
+
+    @Test
+    void testBothPathsProduceTwoEvents() {
+        InMemoryLoader.lastRefresher = null;
+        contextRunner.withUserConfiguration(DeclarativeConfig.class).run(context -> {
+            List<ConfigPropertiesChangedEvent> events = new ArrayList<>();
+            context.addApplicationListener(event -> {
+                if (event instanceof ConfigPropertiesChangedEvent) {
+                    events.add((ConfigPropertiesChangedEvent) event);
+                }
+            });
+
+            assertThat(InMemoryLoader.lastRefresher).isNotNull();
+            InMemoryLoader.lastRefresher.refresh("app.properties",
+                    new ByteArrayResource("app.name=declarative-v2".getBytes(StandardCharsets.UTF_8)));
+
+            context.publishEvent(new EnvironmentChangeEvent(Set.of("app.name")));
+
+            assertThat(events).hasSize(2);
+            assertThat(events.get(0).getSourceName()).startsWith("InMemoryPropertySource@");
+            assertThat(events.get(0).getOldProperties()).containsEntry("app.name", "declarative");
+            assertThat(events.get(0).getNewProperties()).containsEntry("app.name", "declarative-v2");
+            assertThat(events.get(1).getSourceName()).isEqualTo("environment");
+            assertThat(events.get(1).getOldProperties().get("app.name")).isNull();
+            assertThat(events.get(1).getNewProperties()).containsEntry("app.name", "declarative-v2");
+        });
+    }
+
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Inherited
+    @Documented
+    @PropertySourceExtension
+    @Import(InMemoryLoader.class)
+    @interface InMemoryPropertySource {
+
+        @AliasFor(annotation = PropertySourceExtension.class)
+        String[] value() default {};
+
+        @AliasFor(annotation = PropertySourceExtension.class)
+        boolean autoRefreshed() default true;
+    }
+
+    static class InMemoryLoader extends PropertySourceExtensionLoader<InMemoryPropertySource> {
+
+        static volatile ResourcePropertySourcesRefresher lastRefresher;
+
+        @Override
+        protected Class<InMemoryPropertySource> getAnnotationType() {
+            return InMemoryPropertySource.class;
+        }
+
+        @Override
+        protected Resource[] resolveResources(AnnotationAttributes attributes, String propertySourceName,
+                                              String resourceValue) {
+            return new Resource[]{
+                    new ByteArrayResource("app.name=declarative".getBytes(StandardCharsets.UTF_8), resourceValue)
+            };
+        }
+
+        @Override
+        protected void configureRefresher(AnnotationAttributes attributes, ResourcePropertySourcesRefresher refresher) {
+            lastRefresher = refresher;
+        }
+    }
+
+    @InMemoryPropertySource("app.properties")
+    @Configuration
+    static class DeclarativeConfig {
     }
 }
