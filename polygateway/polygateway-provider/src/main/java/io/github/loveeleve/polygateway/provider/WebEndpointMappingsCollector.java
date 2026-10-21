@@ -42,9 +42,10 @@ import java.util.Set;
  * error controller) are skipped by {@link #isIncludedController(String)}, so the infrastructure
  * endpoints are never published to the gateway.
  *
- * <p>The collected mappings are sorted deterministically and an explicit id is assigned by the
- * position, so that the same endpoint set always produces the same ids (and therefore the same
- * route identifiers on the gateway).
+ * <p>The collected mappings are sorted deterministically, and every mapping carries the id computed
+ * from its six dimensional conditions. The same endpoint therefore gets the same id (and the same
+ * route identifier on the gateway) on every instance, even when the endpoint sets of the instances
+ * differ (for example during a canary release).
  *
  * @author <a href="https://github.com/LoveEleve">LoveEleve</a>
  * @since 1.0.0
@@ -63,7 +64,6 @@ public class WebEndpointMappingsCollector {
             collect(handlerMapping, mappings);
         }
         mappings.sort(mappingComparator());
-        assignIds(mappings);
         return mappings;
     }
 
@@ -138,22 +138,4 @@ public class WebEndpointMappingsCollector {
                 .thenComparing(mapping -> String.join(",", mapping.getHeaders()));
     }
 
-    private void assignIds(List<WebEndpointMapping> mappings) {
-        List<WebEndpointMapping> identified = new ArrayList<>(mappings.size());
-        for (int i = 0; i < mappings.size(); i++) {
-            WebEndpointMapping mapping = mappings.get(i);
-            identified.add(WebEndpointMapping.builder(mapping.getKind())
-                    .id(i + 1)
-                    .negated(mapping.isNegated())
-                    .patterns(mapping.getPatterns())
-                    .methods(mapping.getMethods())
-                    .params(mapping.getParams())
-                    .headers(mapping.getHeaders())
-                    .consumes(mapping.getConsumes())
-                    .produces(mapping.getProduces())
-                    .build());
-        }
-        mappings.clear();
-        mappings.addAll(identified);
-    }
 }

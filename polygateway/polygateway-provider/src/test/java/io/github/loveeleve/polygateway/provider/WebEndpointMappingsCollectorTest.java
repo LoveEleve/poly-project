@@ -34,6 +34,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * {@link WebEndpointMappingsCollector} Test
@@ -67,36 +68,45 @@ class WebEndpointMappingsCollectorTest {
         }
     }
 
+    @RestController
+    static class ExtraController {
+
+        @GetMapping("/aaa/extra")
+        public String extra() {
+            return "";
+        }
+    }
+
     @Test
     void testCollect() {
-        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
-        context.setServletContext(new MockServletContext());
-        context.register(WebConfig.class, TestController.class);
-        context.refresh();
-        try {
-            List<WebEndpointMapping> mappings = new WebEndpointMappingsCollector().collect(context);
+        List<WebEndpointMapping> mappings = collect(TestController.class);
 
-            WebEndpointMapping orders = find(mappings, "/orders/{id}");
-            assertArrayEquals(new String[]{"GET"}, orders.getMethods());
-            assertEquals(WebEndpointMapping.Kind.MVC, orders.getKind());
+        WebEndpointMapping orders = find(mappings, "/orders/{id}");
+        assertArrayEquals(new String[]{"GET"}, orders.getMethods());
+        assertEquals(WebEndpointMapping.Kind.MVC, orders.getKind());
 
-            WebEndpointMapping reconcile = find(mappings, "/internal/reconcile");
-            assertArrayEquals(new String[]{"POST"}, reconcile.getMethods());
-            assertArrayEquals(new String[]{"application/json"}, reconcile.getProduces());
+        WebEndpointMapping reconcile = find(mappings, "/internal/reconcile");
+        assertArrayEquals(new String[]{"POST"}, reconcile.getMethods());
+        assertArrayEquals(new String[]{"application/json"}, reconcile.getProduces());
 
-            WebEndpointMapping anyMethod = find(mappings, "/any-method");
-            assertEquals(0, anyMethod.getMethods().length);
+        WebEndpointMapping anyMethod = find(mappings, "/any-method");
+        assertEquals(0, anyMethod.getMethods().length);
 
-            // The ids are assigned deterministically by the sorted position
-            for (int i = 0; i < mappings.size(); i++) {
-                assertEquals(i + 1, mappings.get(i).getId());
-            }
+        assertNotEquals(0, orders.getId());
+        assertNotEquals(orders.getId(), reconcile.getId());
 
-            // The deterministic order is stable for the same endpoint set
-            assertEquals(mappings, new WebEndpointMappingsCollector().collect(context));
-        } finally {
-            context.close();
-        }
+        // The deterministic order is stable for the same endpoint set
+        assertEquals(mappings, collect(TestController.class));
+    }
+
+    @Test
+    void testIdsAreStableWhenTheEndpointSetChanges() {
+        WebEndpointMapping orders = find(collect(TestController.class), "/orders/{id}");
+        WebEndpointMapping ordersWithExtra = find(collect(TestController.class, ExtraController.class), "/orders/{id}");
+        WebEndpointMapping extra = find(collect(TestController.class, ExtraController.class), "/aaa/extra");
+
+        assertEquals(orders.getId(), ordersWithExtra.getId());
+        assertNotEquals(orders.getId(), extra.getId());
     }
 
     @Test
@@ -105,6 +115,19 @@ class WebEndpointMappingsCollectorTest {
 
         assertFalse(collector.isIncludedController("org.springframework.boot.actuate.endpoint.web.servlet.WebMvcEndpointHandlerMapping"));
         assertFalse(collector.isIncludedController("org.springframework.boot.autoconfigure.web.servlet.error.BasicErrorController"));
+    }
+
+    private static List<WebEndpointMapping> collect(Class<?>... controllers) {
+        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+        context.setServletContext(new MockServletContext());
+        context.register(WebConfig.class);
+        context.register(controllers);
+        context.refresh();
+        try {
+            return new WebEndpointMappingsCollector().collect(context);
+        } finally {
+            context.close();
+        }
     }
 
     private static WebEndpointMapping find(List<WebEndpointMapping> mappings, String pattern) {

@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.cloud.client.discovery.simple.SimpleDiscoveryClientAutoConfiguration;
+import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -80,6 +82,15 @@ class PolyGatewayAutoConfigurationTest {
                     assertThat(properties.getExcludes().get(0).getPatterns()).containsExactly("/internal/**");
                     assertThat(properties.getExcludes().get(0).getMethods()).containsExactly("POST");
                 });
+    }
+
+    @Test
+    void testGatewayLocatorWithSimpleDiscoveryClient() {
+        contextRunner
+                .withConfiguration(AutoConfigurations.of(UtilAutoConfiguration.class,
+                        SimpleDiscoveryClientAutoConfiguration.class))
+                .withPropertyValues("polygateway.provider.enabled=false")
+                .run(context -> assertThat(context).hasSingleBean(WebEndpointRouteDefinitionLocator.class));
     }
 
     @Test

@@ -22,6 +22,7 @@ import io.github.loveeleve.polygateway.gateway.WebEndpointRouteDefinitionLocator
 import io.github.loveeleve.polygateway.gateway.predicate.ConsumesRoutePredicateFactory;
 import io.github.loveeleve.polygateway.gateway.predicate.ProducesRoutePredicateFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -31,6 +32,7 @@ import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.cloud.gateway.route.RouteDefinitionLocator;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
 
 /**
  * The auto-configuration of the PolyGateway gateway side: it generates the endpoint level routes
@@ -41,10 +43,14 @@ import org.springframework.context.annotation.Bean;
  * ({@link RouteDefinitionLocator}, the route predicate factory naming convention), no Spring Boot
  * or SCG internals are touched.
  *
+ * <p>The auto-configuration is ordered last so that the {@link DiscoveryClient} contributed by the
+ * discovery auto-configurations is visible to the conditional route locator bean.
+ *
  * @author <a href="https://github.com/LoveEleve">LoveEleve</a>
  * @since 1.0.0
  */
 @AutoConfiguration
+@AutoConfigureOrder(Ordered.LOWEST_PRECEDENCE)
 @ConditionalOnClass({RouteDefinitionLocator.class, DiscoveryClient.class})
 @ConditionalOnProperty(prefix = PolyGatewayGatewayProperties.PREFIX, name = "enabled", havingValue = "true",
         matchIfMissing = true)

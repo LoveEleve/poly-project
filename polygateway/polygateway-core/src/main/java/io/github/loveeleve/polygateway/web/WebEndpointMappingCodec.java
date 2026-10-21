@@ -131,16 +131,18 @@ public abstract class WebEndpointMappingCodec {
     }
 
     private static WebEndpointMapping decodeNode(JsonNode node) {
-        return WebEndpointMapping.builder(WebEndpointMapping.Kind.valueOf(node.path(KIND).asText()))
-                .id(node.path(ID).asInt())
+        WebEndpointMapping.Builder builder = WebEndpointMapping.builder(WebEndpointMapping.Kind.valueOf(node.path(KIND).asText()))
                 .negated(node.path(NEGATED).asBoolean())
                 .patterns(stringArray(node.path(PATTERNS)))
                 .methods(stringArray(node.path(METHODS)))
                 .params(stringArray(node.path(PARAMS)))
                 .headers(stringArray(node.path(HEADERS)))
                 .consumes(stringArray(node.path(CONSUMES)))
-                .produces(stringArray(node.path(PRODUCES)))
-                .build();
+                .produces(stringArray(node.path(PRODUCES)));
+        if (node.hasNonNull(ID)) {
+            builder.id(node.get(ID).asInt());
+        }
+        return builder.build();
     }
 
     private static String[] stringArray(JsonNode arrayNode) {

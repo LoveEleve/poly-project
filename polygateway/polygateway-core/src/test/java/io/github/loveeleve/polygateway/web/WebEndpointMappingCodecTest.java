@@ -68,6 +68,21 @@ class WebEndpointMappingCodecTest {
     }
 
     @Test
+    void testMissingIdFallsBackToTheStableId() {
+        WebEndpointMapping expected = WebEndpointMapping.builder(WebEndpointMapping.Kind.MVC)
+                .patterns("/orders/{id}")
+                .methods("GET")
+                .build();
+
+        List<WebEndpointMapping> decoded = WebEndpointMappingCodec.decode(
+                "[{\"kind\":\"MVC\",\"patterns\":[\"/orders/{id}\"],\"methods\":[\"GET\"]}]");
+
+        assertEquals(1, decoded.size());
+        assertEquals(expected.getId(), decoded.get(0).getId());
+        assertEquals(expected, decoded.get(0));
+    }
+
+    @Test
     void testEmptyList() {
         String json = WebEndpointMappingCodec.encode(List.of());
         assertEquals("[]", json);
