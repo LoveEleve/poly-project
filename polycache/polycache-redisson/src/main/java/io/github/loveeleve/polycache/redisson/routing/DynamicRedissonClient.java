@@ -195,7 +195,8 @@ public class DynamicRedissonClient implements AutoCloseable {
      * @return this router
      */
     public DynamicRedissonClient removeTarget(String name) {
-        if (DEFAULT_TARGET.equals(name)) {
+        requireName(name);
+        if (DEFAULT_TARGET.equals(name) || Objects.equals(name, defaultTarget)) {
             throw new IllegalArgumentException("The default target cannot be removed");
         }
         Target removed = targets.remove(name);

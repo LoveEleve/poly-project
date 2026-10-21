@@ -48,16 +48,24 @@ class CommandCaptureHandler extends ChannelOutboundHandlerAdapter {
 
     @Override
     public void write(ChannelHandlerContext context, Object message, ChannelPromise promise) throws Exception {
-        captureSafely(message);
+        captureSafely(message, promise);
         super.write(context, message, promise);
     }
 
-    private void captureSafely(Object message) {
+    private void captureSafely(Object message, ChannelPromise promise) {
         try {
             if (message instanceof CommandData) {
                 capture.capture((CommandData<?, ?>) message);
             } else if (message instanceof CommandsData) {
-                capture.capture((CommandsData) message);
+                CommandsData commandsData = (CommandsData) message;
+                if (commandsData.isSkipResult()) {
+                    // A skipResult batch does not complete the promises of its inner commands, and
+                    // the batch promise is not a reliable completion signal for every Redisson
+                    // version. The channel write promise is the only signal available here.
+                    capture.capture(commandsData, promise);
+                } else {
+                    capture.capture(commandsData);
+                }
             }
         } catch (Throwable e) {
             // The capture must never affect the Redis command itself

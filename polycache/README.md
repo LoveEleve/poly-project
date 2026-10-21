@@ -31,7 +31,7 @@ client.getBucket("user:1").get();             // 读命令不复制
 | 能力 | 说明 |
 |------|------|
 | 无侵入拦截 | 通过 `Config#setNettyHook` 在 Redisson 的 Netty 连接管线尾部观察 `CommandData`，不需要代理任何 Redisson API、不需要改动业务代码 |
-| 命令级捕获 | 命令名 + 参数在 codec 编码完成后被捕获（wire-ready），与源端的序列化器实例无关 |
+| 命令级捕获 | 值参数已由源端 codec 编码（wire-ready），捕获点位于 Redisson `CommandEncoder` 之前；命令名、key、脚本等按 `CommandEncoder` 相同规则转为 UTF-8 |
 | 写命令过滤 | 基于 Redis 官方命令目录与 `ACL CAT write` 写命令目录；另外把 `EVAL` / `EVALSHA` 视为写命令，覆盖 Redisson 内部 Lua 脚本实现的操作 |
 | 语义重放 | 消费端用 `ByteArrayCodec` 把参数原样提交给目标 Redisson 的 `CommandAsyncExecutor`，响应由宽松解码器消费，不依赖业务序列化器 |
 | 脚本透明转换 | 捕获层从 `SCRIPT LOAD` 学习脚本体（SHA1 索引、LRU 上限 1024），把 `EVALSHA` 复制为携带脚本的 `EVAL`，重放不依赖对端 Redis 的脚本缓存 |
@@ -150,10 +150,10 @@ Kafka 连接参数复用 Spring Boot 的 `spring.kafka.*`。
 
 ## 测试
 
-60 个测试，全部使用进程级真实依赖（Redis 为本地 `redis-server` 进程或 Docker 容器，Kafka 为 Embedded Broker）：
+62 个测试，全部使用进程级真实依赖（Redis 为本地 `redis-server` 进程或 Docker 容器，Kafka 为 Embedded Broker）：
 
 - `polycache-core`（10）：命令目录、写命令判定（含 Locale 无关性）与消息模型单测
-- `polycache-redisson`（30）：参数编码 / 路由 key 提取 / 重试去重 / 异常隔离 / skipResult 批次 / 脚本注册表与 EVALSHA→EVAL 转换 / 拦截器链单测（含重试仅执行一次） + 双 Redis 端到端（含 `useScriptCache` 场景）+ 3 节点真集群双向端到端 + 多线程并发捕获 + 动态路由端到端（线程切换/并发/热替换/作用域与嵌套/默认目标切换/校验与关闭语义/路由与复制联动）
+- `polycache-redisson`（32）：参数编码 / 路由 key 提取 / 重试去重 / 异常隔离 / skipResult 批次（write promise 成功/失败）/ 脚本注册表与 EVALSHA→EVAL 转换 / 拦截器链单测（含重试仅执行一次） + 双 Redis 端到端（含 `useScriptCache` 场景）+ 3 节点真集群双向端到端 + 多线程并发捕获 + 动态路由端到端（线程切换/并发/热替换/作用域与嵌套/默认目标切换与保护/校验与关闭语义/路由与复制联动）
 - `polycache-replicator`（11）：消息编解码单测（含超长 key 与损坏负载）、生产者资源释放单测+ Embedded Kafka 端到端（源 Redis → Kafka → 目标 Redis，覆盖 SET / RMap(EVAL) / INCR / 顺序敏感命令 / SADD / HSET / putAll / TTL / 100KB 大 value / skipResult 批次）
 - `polycache-spring-boot`（9）：自动装配条件、参数校验、Redisson Config 定制、拦截器 Bean 装配 + 双机房全链路端到端（两个应用上下文 + 共享 Kafka + 各自 Redis，验证互相同步且不产生复制回环）+ Docker 双机房演示（容器不可达时自动跳过）
 

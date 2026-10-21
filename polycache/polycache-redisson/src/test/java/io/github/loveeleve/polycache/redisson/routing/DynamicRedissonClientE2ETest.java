@@ -316,6 +316,23 @@ class DynamicRedissonClientE2ETest {
         }
     }
 
+    @Test
+    void testCurrentDefaultTargetCannotBeRemoved() throws Exception {
+        try (RedisServer primary = RedisServer.start();
+             RedisServer secondary = RedisServer.start()) {
+
+            DynamicRedissonClient dynamic = DynamicRedissonClient.create(singleServerConfig(primary));
+            dynamic.addTarget("secondary", singleServerConfig(secondary));
+            dynamic.setDefaultTarget("secondary");
+
+            assertThrows(IllegalArgumentException.class, () -> dynamic.removeTarget("secondary"));
+            assertEquals("secondary", dynamic.getDefaultTarget());
+            assertTrue(dynamic.getTargetNames().contains("secondary"));
+
+            dynamic.shutdown();
+        }
+    }
+
     private static void awaitUntil(BooleanSupplier condition) throws InterruptedException {
         long deadline = System.currentTimeMillis() + Duration.ofSeconds(10).toMillis();
         while (System.currentTimeMillis() < deadline) {

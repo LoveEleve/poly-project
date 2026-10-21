@@ -17,6 +17,7 @@
 package io.github.loveeleve.polycache.redisson.capture;
 
 import io.github.loveeleve.polycache.command.RedisCommandMessage;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 import org.redisson.client.codec.StringCodec;
@@ -203,7 +204,7 @@ class RedisCommandCaptureTest {
      * inner commands, so the commands must be published when the batch completes.
      */
     @Test
-    void testSkipResultBatchIsCapturedOnBatchCompletion() {
+    void testSkipResultBatchIsCapturedOnWriteCompletion() {
         List<RedisCommandMessage> messages = new CopyOnWriteArrayList<>();
         RedisCommandCapture capture = capture(messages);
 
@@ -213,13 +214,34 @@ class RedisCommandCaptureTest {
         CommandsData commandsData = new CommandsData(batchPromise, List.of(innerClient, innerSet),
                 true, false, false, false);
 
-        capture.capture(commandsData);
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ChannelPromise writePromise = channel.newPromise();
+        capture.capture(commandsData, writePromise);
         assertTrue(messages.isEmpty());
 
-        batchPromise.complete(null);
+        writePromise.setSuccess();
         assertEquals(1, messages.size());
         assertEquals("SET", messages.get(0).getCommandName());
         assertEquals("skip:1", messages.get(0).getKey());
+        channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void testSkippedResultBatchWriteFailureIsNotPublished() {
+        List<RedisCommandMessage> messages = new CopyOnWriteArrayList<>();
+        RedisCommandCapture capture = capture(messages);
+
+        CommandData<?, ?> innerSet = commandData(new CompletableFuture<>(), "SET", "skip:1", "value");
+        CommandsData commandsData = new CommandsData(new CompletableFuture<>(), List.of(innerSet),
+                true, false, false, false);
+
+        EmbeddedChannel channel = new EmbeddedChannel();
+        ChannelPromise writePromise = channel.newPromise();
+        capture.capture(commandsData, writePromise);
+        writePromise.setFailure(new IllegalStateException("write failed"));
+
+        assertTrue(messages.isEmpty());
+        channel.finishAndReleaseAll();
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

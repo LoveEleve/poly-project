@@ -18,6 +18,7 @@ package io.github.loveeleve.polycache.redisson.capture;
 
 import io.github.loveeleve.polycache.command.RedisCommandMessage;
 import io.github.loveeleve.polycache.command.RedisCommandRegistry;
+import io.netty.channel.ChannelPromise;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
 import org.redisson.client.protocol.RedisCommand;
@@ -188,23 +189,9 @@ public class RedisCommandCapture {
             return;
         }
         if (commandsData.isSkipResult()) {
-            // With a batch executed with skipResult, Redisson does not complete the promises of the
-            // inner commands, so they are published when the whole batch completes
-            CompletableFuture<?> promise = commandsData.getPromise();
-            if (promise != null && !claim(promise)) {
-                return;
-            }
-            List<RedisCommandMessage> messages = new ArrayList<>();
-            collectMessages(commandsData.getCommands(), messages);
-            collectMessages(commandsData.getAttachedCommands(), messages);
-            if (messages.isEmpty()) {
-                return;
-            }
-            if (promise == null) {
-                messages.forEach(this::publish);
-            } else {
-                publishOnCompletion(promise, messages);
-            }
+            // The channel write promise is required for a skipResult batch; see
+            // capture(CommandsData, ChannelPromise)
+            logger.debug("The skipResult batch must be captured with its channel write promise");
             return;
         }
         List<CommandData<?, ?>> commands = commandsData.getCommands();
@@ -215,6 +202,46 @@ public class RedisCommandCapture {
         if (attachedCommands != null) {
             attachedCommands.forEach(this::capture);
         }
+    }
+
+    /**
+     * Captures a batch executed with {@code skipResult}. Redisson does not complete the promises
+     * of the inner commands (and the batch promise is not a reliable completion signal for every
+     * Redisson version), so the messages are published when the channel write succeeds.
+     *
+     * @param commandsData the batch data
+     * @param writePromise the promise of the Netty write operation
+     */
+    void capture(CommandsData commandsData, ChannelPromise writePromise) {
+        if (!enabled) {
+            return;
+        }
+        if (!commandsData.isSkipResult()) {
+            capture(commandsData);
+            return;
+        }
+        if (writePromise == null) {
+            logger.warn("The skipResult batch [{}] was not captured : no channel write promise", commandsData);
+            return;
+        }
+        CompletableFuture<?> batchPromise = commandsData.getPromise();
+        if (batchPromise != null && !claim(batchPromise)) {
+            return;
+        }
+        List<RedisCommandMessage> messages = new ArrayList<>();
+        collectMessages(commandsData.getCommands(), messages);
+        collectMessages(commandsData.getAttachedCommands(), messages);
+        if (messages.isEmpty()) {
+            return;
+        }
+        writePromise.addListener(future -> {
+            if (future.isSuccess()) {
+                messages.forEach(this::publish);
+            } else {
+                logger.debug("The skipResult batch was not replicated because its write failed : {}",
+                        future.cause() == null ? "unknown" : future.cause().getMessage());
+            }
+        });
     }
 
     private RedisCommandMessage buildMessage(String commandName, Object[] params) {
